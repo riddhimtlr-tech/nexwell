@@ -7,12 +7,16 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 
 // PostgreSQL connection
-const pool = new Pool({
-    user: "riddhi",
-    host: "localhost",
-    database: "nexwell",
-    port: 5432
-});
+const pool = new Pool(
+    process.env.DATABASE_URL
+        ? { connectionString: process.env.DATABASE_URL }
+        : {
+            user: "riddhi",
+            host: "localhost",
+            database: "nexwell",
+            port: 5432
+        }
+);
 
 // Test database connection
 pool.query("SELECT NOW()", (err, result) => {
