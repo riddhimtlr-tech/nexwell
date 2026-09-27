@@ -1,0 +1,77 @@
+import sys
+import json
+
+
+def simulate(data, change):
+    """
+    Estimate how a proposed lifestyle change
+    could affect other lifestyle factors.
+
+    This is an estimate based on the user's
+    historical patterns, not a medical prediction.
+    """
+
+    current = data[-1]
+
+    field = change["field"]
+    delta = change["delta"]
+
+    estimated = {
+        "sleep": current["sleep"],
+        "energy": current["energy"]
+    }
+
+    # Screen time → sleep / energy
+    if field == "screenTime":
+
+        # Based on the user's historical relationship
+        estimated["sleep"] = round(
+            current["sleep"] + (-0.45 * delta),
+            1
+        )
+
+        estimated["energy"] = round(
+            current["energy"] + (-1.0 * delta),
+            1
+        )
+
+    # Steps → energy
+    elif field == "steps":
+
+        estimated["energy"] = round(
+            current["energy"] + (delta / 2000),
+            1
+        )
+
+    # Activity → energy
+    elif field == "activity":
+
+        estimated["energy"] = round(
+            current["energy"] + (delta / 20),
+            1
+        )
+
+    # Keep values within sensible demo ranges
+    estimated["sleep"] = max(0, estimated["sleep"])
+    estimated["energy"] = max(1, min(10, estimated["energy"]))
+
+    return {
+        "current": {
+            "sleep": current["sleep"],
+            "energy": current["energy"]
+        },
+        "change": change,
+        "estimated": estimated,
+        "confidence": "estimate"
+    }
+
+
+# Receive input from Node.js
+input_data = json.loads(sys.stdin.read())
+
+data = input_data["data"]
+change = input_data["change"]
+
+result = simulate(data, change)
+
+print(json.dumps(result, indent=2))
