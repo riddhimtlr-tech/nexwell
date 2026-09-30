@@ -16,3 +16,4 @@ __pycache__/
 **/build/
 **/local.properties
 **/.idea/
+backend/server-debug.log
