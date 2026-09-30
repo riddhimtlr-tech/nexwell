@@ -1,14 +1,13 @@
-const authenticateToken = require("./middleware/auth");
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const { spawn } = require("child_process");
-const authRoutes = require("./routes/auth");
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
-app.use("/api/auth", authRoutes);
+
 // PostgreSQL connection
 const pool = new Pool(
     process.env.DATABASE_URL
@@ -20,7 +19,6 @@ const pool = new Pool(
             port: 5432
         }
 );
-app.locals.pool = pool;
 
 // Test database connection
 pool.query("SELECT NOW()", (err, result) => {
@@ -40,14 +38,10 @@ app.get("/", (req, res) => {
 });
 
 // Get lifestyle data
-app.get("/api/lifestyle/:userId", authenticateToken, async (req, res) => {
+app.get("/api/lifestyle/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
-        if (Number(userId) !== Number(req.user.userId)) {
-            return res.status(403).json({
-                message: "Access denied"
-            });
-        }
+
         const result = await pool.query(
             `SELECT * FROM lifestyle_data
              WHERE user_id = $1
@@ -72,9 +66,10 @@ app.get("/api/lifestyle/:userId", authenticateToken, async (req, res) => {
 });
 
 // Analyze lifestyle data using Python
-app.post("/api/analyze", authenticateToken, async (req, res) => {
+app.post("/api/analyze", async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const { userId } = req.body;
+
         // Get lifestyle data from PostgreSQL
         const result = await pool.query(
             `SELECT date, sleep, steps, screen_time, activity, heart_rate, energy
@@ -163,10 +158,10 @@ app.post("/api/analyze", authenticateToken, async (req, res) => {
     }
 });
 // What-If Simulator
-app.post("/api/simulate", authenticateToken, async (req, res) => {
+app.post("/api/simulate", async (req, res) => {
     try {
-        const { field, delta } = req.body;
-        const userId = req.user.userId;
+        const { userId, field, delta } = req.body;
+
         // Get user's lifestyle history up to today
         const result = await pool.query(
             `SELECT date, sleep, steps, screen_time, activity, heart_rate, energy
@@ -264,10 +259,10 @@ app.post("/api/simulate", authenticateToken, async (req, res) => {
     }
 });
 // Start a 7-day experiment
-app.post("/api/experiments", authenticateToken, async (req, res) => {
+app.post("/api/experiments", async (req, res) => {
     try {
-        const { goalField, targetChange } = req.body;
-        const userId = req.user.userId;
+        const { userId, goalField, targetChange } = req.body;
+
         const result = await pool.query(
             `INSERT INTO experiments
              (user_id, goal_field, target_change, start_date, end_date, status)
@@ -291,14 +286,9 @@ app.post("/api/experiments", authenticateToken, async (req, res) => {
     }
 });
 // Get user's experiments
-app.get("/api/experiments/:userId", authenticateToken, async (req, res) => {
+app.get("/api/experiments/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
-        if (Number(userId) !== Number(req.user.userId)) {
-            return res.status(403).json({
-                message: "Access denied"
-            });
-        }
 
         const result = await pool.query(
             `SELECT *
@@ -324,7 +314,7 @@ app.get("/api/experiments/:userId", authenticateToken, async (req, res) => {
     }
 });
 // Compare before vs after experiment
-app.get("/api/compare/:experimentId", authenticateToken, async (req, res) => {
+app.get("/api/compare/:experimentId", async (req, res) => {
     try {
         const { experimentId } = req.params;
 
@@ -343,11 +333,7 @@ app.get("/api/compare/:experimentId", authenticateToken, async (req, res) => {
         }
 
         const experiment = experimentResult.rows[0];
-        if (Number(experiment.user_id) !== Number(req.user.userId)) {
-            return res.status(403).json({
-                message: "Access denied"
-            });
-        }
+
         // Get data from before the experiment
         const beforeResult = await pool.query(
             `SELECT
@@ -499,11 +485,13 @@ app.get("/api/health/status", (req, res) => {
 });
 
 // Sync Google Health data to PostgreSQL lifestyle_data
-app.post("/api/health/sync", authenticateToken, async (req, res) => {
+app.post("/api/health/sync", async (req, res) => {
     try {
-        const { days = 7 } = req.body;
-        const userId = req.user.userId;
-    
+        const { userId, days = 7 } = req.body;
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required" });
+        }
+
         const { records, report } = await collect.fromApi(userId, days);
         const saved = [];
 
@@ -528,13 +516,9 @@ app.post("/api/health/sync", authenticateToken, async (req, res) => {
 });
 
 // Validate & save manual entry to PostgreSQL lifestyle_data
-app.post("/api/health/manual", authenticateToken, async (req, res) => {
+app.post("/api/health/manual", async (req, res) => {
     try {
-        const manualData = {
-        ...req.body,
-        userId: req.user.userId
-        };
-        const { record, errors } = normalize.validateManual(manualData);
+        const { record, errors } = normalize.validateManual(req.body);
         if (errors.length > 0) {
             return res.status(400).json({ message: "Validation failed", errors });
         }
@@ -553,10 +537,13 @@ app.post("/api/health/manual", authenticateToken, async (req, res) => {
 const wearableSimulator = require('./services/wearableSimulator');
 
 // Generate & ingest simulated wearable daily records into PostgreSQL
-app.post("/api/wearable/simulate", authenticateToken, async (req, res) => {
+app.post("/api/wearable/simulate", async (req, res) => {
     try {
-        const { days = 1, date } = req.body;
-        const userId = req.user.userId;
+        const { userId, days = 1, date } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: "userId is required" });
+        }
 
         const numDays = parseInt(days, 10);
         if (isNaN(numDays) || numDays < 1 || numDays > 7) {

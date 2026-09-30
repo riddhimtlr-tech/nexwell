@@ -10,3 +10,9 @@ __pycache__/
 *.sql
 
 *.sql
+
+# Android
+**/.gradle/
+**/build/
+**/local.properties
+**/.idea/
