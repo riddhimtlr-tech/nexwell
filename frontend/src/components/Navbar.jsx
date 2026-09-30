@@ -7,10 +7,16 @@ import {
   Sparkles,
   UserCheck,
   Layers,
-  User
+  User,
+  Smartphone
 } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
+export default function Navbar({
+  activeTab,
+  setActiveTab,
+  userId = '1',
+  setUserId
+}) {
   const tabs = [
     {
       id: 'overview',
@@ -42,6 +48,12 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
       label: 'Profile',
       subLabel: 'Personalize',
       icon: User
+    },
+    {
+      id: 'devices',
+      label: 'Devices',
+      subLabel: 'Connect',
+      icon: Smartphone
     }
   ];
 
@@ -57,18 +69,20 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
         marginBottom: '32px'
       }}
     >
-      <div className="app-container" style={{ paddingBottom: 0 }}>
-        {/* Top Bar: Brand & User Selection */}
+      <div
+        className="app-container"
+        style={{ paddingBottom: 0 }}
+      >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 0',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+            borderBottom:
+              '1px solid rgba(255, 255, 255, 0.05)'
           }}
         >
-          {/* Logo & Tagline */}
           <div
             style={{
               display: 'flex',
@@ -86,10 +100,15 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)'
+                boxShadow:
+                  '0 4px 14px rgba(16, 185, 129, 0.25)'
               }}
             >
-              <Activity size={22} color="#FFFFFF" strokeWidth={2.5} />
+              <Activity
+                size={22}
+                color="#FFFFFF"
+                strokeWidth={2.5}
+              />
             </div>
 
             <div>
@@ -108,12 +127,21 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
                     color: '#FFF'
                   }}
                 >
-                  Nex<span style={{ color: 'var(--emerald-main)' }}>Well</span>
+                  Nex
+                  <span
+                    style={{
+                      color: 'var(--emerald-main)'
+                    }}
+                  >
+                    Well
+                  </span>
                 </span>
 
                 <span
                   className="badge badge-indigo"
-                  style={{ fontSize: '0.65rem' }}
+                  style={{
+                    fontSize: '0.65rem'
+                  }}
                 >
                   Experiment Engine
                 </span>
@@ -131,7 +159,6 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
             </div>
           </div>
 
-          {/* User ID Selector */}
           <div
             style={{
               display: 'flex',
@@ -143,7 +170,10 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
               border: '1px solid var(--border-color)'
             }}
           >
-            <UserCheck size={16} color="var(--emerald-main)" />
+            <UserCheck
+              size={16}
+              color="var(--emerald-main)"
+            />
 
             <span
               style={{
@@ -157,7 +187,9 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
 
             <select
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              onChange={(e) =>
+                setUserId?.(e.target.value)
+              }
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -168,22 +200,30 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
                 cursor: 'pointer'
               }}
             >
-              <option value="1" style={{ background: '#121826' }}>
+              <option
+                value="1"
+                style={{ background: '#121826' }}
+              >
                 User 1 (Alex - Default)
               </option>
 
-              <option value="2" style={{ background: '#121826' }}>
+              <option
+                value="2"
+                style={{ background: '#121826' }}
+              >
                 User 2 (Jordan)
               </option>
 
-              <option value="3" style={{ background: '#121826' }}>
+              <option
+                value="3"
+                style={{ background: '#121826' }}
+              >
                 User 3 (Taylor)
               </option>
             </select>
           </div>
         </div>
 
-        {/* Experiment Loop Step Tabs */}
         <nav
           style={{
             display: 'flex',
@@ -199,13 +239,16 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() =>
+                  setActiveTab(tab.id)
+                }
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
                   padding: '10px 18px',
-                  borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+                  borderRadius:
+                    'var(--radius-sm) var(--radius-sm) 0 0',
                   borderBottom: isActive
                     ? '2px solid var(--emerald-main)'
                     : '2px solid transparent',
@@ -237,7 +280,8 @@ export default function Navbar({ activeTab, setActiveTab, userId, setUserId }) {
                   <span
                     style={{
                       fontSize: '0.65rem',
-                      background: 'var(--emerald-main)',
+                      background:
+                        'var(--emerald-main)',
                       color: '#000',
                       fontWeight: 700,
                       padding: '2px 6px',

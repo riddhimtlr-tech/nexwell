@@ -6,6 +6,7 @@ import Patterns from './components/Patterns';
 import WhatIfSimulator from './components/WhatIfSimulator';
 import Experiments from './components/Experiments';
 import Profile from './components/Profile';
+import ConnectedDevices from './components/ConnectedDevices';
 
 import { api } from './services/api';
 
@@ -89,7 +90,10 @@ function App() {
     try {
       const response = await api.getLifestyleData(userId);
 
-      const data = response?.lifestyleData || response?.data || response;
+      const data =
+        response?.lifestyleData ||
+        response?.data ||
+        response;
 
       if (Array.isArray(data) && data.length > 0) {
         setLifestyleData(data);
@@ -97,7 +101,10 @@ function App() {
         setLifestyleData(demoLifestyleData);
       }
     } catch (err) {
-      console.log('Using demo lifestyle data:', err.message);
+      console.log(
+        'Using demo lifestyle data:',
+        err.message
+      );
 
       setLifestyleData(demoLifestyleData);
       setError(null);
@@ -133,7 +140,9 @@ function App() {
             loading={loading}
             error={error}
             onRefresh={loadLifestyleData}
-            onNavigateToSimulator={() => setActiveTab('simulator')}
+            onNavigateToSimulator={() =>
+              setActiveTab('simulator')
+            }
           />
         );
 
@@ -141,7 +150,9 @@ function App() {
         return (
           <Patterns
             userId={userId}
-            onSelectPatternForSimulation={handleSelectPatternForSimulation}
+            onSelectPatternForSimulation={
+              handleSelectPatternForSimulation
+            }
           />
         );
 
@@ -160,13 +171,20 @@ function App() {
         return (
           <Experiments
             userId={userId}
-            prefilledScenario={prefilledScenarioForExperiment}
-            clearPrefilledScenario={clearPrefilledScenario}
+            prefilledScenario={
+              prefilledScenarioForExperiment
+            }
+            clearPrefilledScenario={
+              clearPrefilledScenario
+            }
           />
         );
 
       case 'profile':
         return <Profile />;
+
+      case 'devices':
+        return <ConnectedDevices />;
 
       default:
         return (
@@ -175,7 +193,9 @@ function App() {
             loading={loading}
             error={error}
             onRefresh={loadLifestyleData}
-            onNavigateToSimulator={() => setActiveTab('simulator')}
+            onNavigateToSimulator={() =>
+              setActiveTab('simulator')
+            }
           />
         );
     }
