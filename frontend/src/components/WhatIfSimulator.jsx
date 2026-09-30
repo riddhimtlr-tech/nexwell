@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-
+import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 
 import {
@@ -13,6 +12,8 @@ import {
   Play,
   ShieldAlert,
   Info,
+  TrendingUp,
+  Target,
 } from 'lucide-react';
 
 export default function WhatIfSimulator({
@@ -20,29 +21,39 @@ export default function WhatIfSimulator({
   selectedFactor,
   onStartExperimentFromSimulation,
 }) {
-  const [field, setField] = useState(selectedFactor || 'screenTime');
-
-  const [delta, setDelta] = useState(
-    field === 'screenTime' ? -2 : field === 'steps' ? 2000 : 30
+  const [field, setField] = useState(
+    selectedFactor || 'screenTime'
   );
 
-  const [simulationResult, setSimulationResult] = useState(null);
+  const [delta, setDelta] = useState(
+    field === 'screenTime'
+      ? -2
+      : field === 'steps'
+        ? 2000
+        : 30
+  );
+
+  const [simulationResult, setSimulationResult] =
+    useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   /*
    * OFFLINE FRONTEND MODE
    *
-   * Keep this true while the backend/database is not available.
-   * When Riddhi reconnects the backend, change this to false.
+   * Keep this true while the backend/database is unavailable.
+   * When the backend is ready, change this to false.
+   *
+   * The API integration below remains intact.
    */
   const USE_OFFLINE_DEMO = true;
 
   /*
-   * Temporary frontend-only simulation.
+   * Frontend-only illustrative simulation.
    *
-   * This gives us realistic-looking demo results while developing
-   * the UI without depending on the backend/database.
+   * This is intentionally simple demo logic so the UI can
+   * be developed without depending on the backend/database.
    */
   const runOfflineSimulation = (factor, change) => {
     const baselines = {
@@ -60,7 +71,8 @@ export default function WhatIfSimulator({
       },
     };
 
-    const baseline = baselines[factor] || baselines.screenTime;
+    const baseline =
+      baselines[factor] || baselines.screenTime;
 
     let sleepChange = 0;
     let energyChange = 0;
@@ -88,33 +100,40 @@ export default function WhatIfSimulator({
 
     return {
       current: {
-        sleep: Number(baseline.sleep.toFixed(1)),
-        energy: Number(baseline.energy.toFixed(1)),
+        sleep: Number(
+          baseline.sleep.toFixed(1)
+        ),
+        energy: Number(
+          baseline.energy.toFixed(1)
+        ),
       },
-
       estimated: {
-        sleep: Number(estimatedSleep.toFixed(1)),
-        energy: Number(estimatedEnergy.toFixed(1)),
+        sleep: Number(
+          estimatedSleep.toFixed(1)
+        ),
+        energy: Number(
+          estimatedEnergy.toFixed(1)
+        ),
       },
-
       confidence: 'demo',
     };
   };
 
   /*
-   * Sync field if selectedFactor changes externally.
+   * Sync the selected factor when another page
+   * sends a factor into the simulator.
    */
   useEffect(() => {
-    if (selectedFactor) {
-      setField(selectedFactor);
+    if (!selectedFactor) return;
 
-      if (selectedFactor === 'screenTime') {
-        setDelta(-2);
-      } else if (selectedFactor === 'steps') {
-        setDelta(2000);
-      } else if (selectedFactor === 'activity') {
-        setDelta(30);
-      }
+    setField(selectedFactor);
+
+    if (selectedFactor === 'screenTime') {
+      setDelta(-2);
+    } else if (selectedFactor === 'steps') {
+      setDelta(2000);
+    } else if (selectedFactor === 'activity') {
+      setDelta(30);
     }
   }, [selectedFactor]);
 
@@ -123,8 +142,8 @@ export default function WhatIfSimulator({
    *
    * Offline mode is used for frontend development.
    *
-   * When the backend is ready, set USE_OFFLINE_DEMO to false.
-   * The existing API integration will then be used.
+   * To reconnect the backend later:
+   * change USE_OFFLINE_DEMO to false.
    */
   const handleSimulate = async () => {
     setLoading(true);
@@ -132,29 +151,38 @@ export default function WhatIfSimulator({
 
     try {
       if (USE_OFFLINE_DEMO) {
-        // Small delay so the UI still feels like a real simulation.
-        await new Promise((resolve) => setTimeout(resolve, 350));
+        // Small delay keeps the demo interaction natural.
+        await new Promise((resolve) =>
+          setTimeout(resolve, 350)
+        );
 
-        const result = runOfflineSimulation(field, delta);
+        const result = runOfflineSimulation(
+          field,
+          delta
+        );
 
         setSimulationResult(result);
-
         return;
       }
 
       /*
        * REAL BACKEND INTEGRATION
        *
-       * Riddhi can reconnect the backend later by setting
-       * USE_OFFLINE_DEMO to false.
+       * Keep this path intact for backend reconnect.
        */
-      const res = await api.runSimulation(userId, field, delta);
+      const res = await api.runSimulation(
+        userId,
+        field,
+        delta
+      );
 
-      setSimulationResult(res.simulation || res);
+      setSimulationResult(
+        res.simulation || res
+      );
     } catch (err) {
       setError(
         err.message ||
-          'Unable to run simulation. Please verify backend connection.'
+          'Unable to run simulation. Please verify the backend connection.'
       );
     } finally {
       setLoading(false);
@@ -162,15 +190,14 @@ export default function WhatIfSimulator({
   };
 
   /*
-   * Run initial simulation when the component loads
-   * or when the selected factor changes.
+   * Initial simulation.
    */
   useEffect(() => {
     handleSimulate();
   }, [userId, field]);
 
   /*
-   * Adjust default delta when factor changes.
+   * Change factor and reset to a sensible default.
    */
   const handleFieldChange = (newField) => {
     setField(newField);
@@ -182,6 +209,11 @@ export default function WhatIfSimulator({
     } else if (newField === 'activity') {
       setDelta(30);
     }
+  };
+
+  const applyPreset = (presetField, presetDelta) => {
+    setField(presetField);
+    setDelta(presetDelta);
   };
 
   /*
@@ -211,9 +243,41 @@ export default function WhatIfSimulator({
     return '';
   };
 
-  const current = simulationResult?.current || {};
-  const estimated = simulationResult?.estimated || {};
-  const confidence = simulationResult?.confidence || 'estimate';
+  const current =
+    simulationResult?.current || {};
+
+  const estimated =
+    simulationResult?.estimated || {};
+
+  const confidence =
+    simulationResult?.confidence || 'estimate';
+
+  const sleepDifference =
+    estimated.sleep !== undefined &&
+    current.sleep !== undefined
+      ? Number(
+          (
+            estimated.sleep -
+            current.sleep
+          ).toFixed(1)
+        )
+      : null;
+
+  const energyDifference =
+    estimated.energy !== undefined &&
+    current.energy !== undefined
+      ? Number(
+          (
+            estimated.energy -
+            current.energy
+          ).toFixed(1)
+        )
+      : null;
+
+  const formatDelta = (value) => {
+    if (value > 0) return `+${value}`;
+    return value;
+  };
 
   return (
     <div
@@ -224,104 +288,150 @@ export default function WhatIfSimulator({
         gap: '28px',
       }}
     >
-      {/* 1. Header */}
+      {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
           flexWrap: 'wrap',
-          gap: '16px',
+          gap: '18px',
         }}
       >
         <div>
           <span
             className="badge badge-emerald"
-            style={{ marginBottom: '8px' }}
+            style={{
+              marginBottom: '8px',
+            }}
           >
             Stage 3: Simulate
           </span>
 
-          <h1 className="section-title">What-If Simulator</h1>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+              marginBottom: '8px',
+            }}
+          >
+            <h1
+              className="section-title"
+              style={{
+                marginBottom: 0,
+              }}
+            >
+              What-If Simulator
+            </h1>
+
+            <span className="badge badge-indigo">
+              Explore
+            </span>
+          </div>
 
           <p
             className="section-subtitle"
-            style={{ marginBottom: 0 }}
+            style={{
+              marginBottom: 0,
+              maxWidth: '680px',
+            }}
           >
-            Explore how a proposed lifestyle adjustment might change
-            estimated sleep and energy outcomes.
+            Explore how a proposed lifestyle adjustment
+            might change estimated sleep and energy
+            signals.
           </p>
         </div>
 
         <div
           style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            padding: '8px 14px',
-            borderRadius: 'var(--radius-sm)',
+            background:
+              'rgba(16, 185, 129, 0.1)',
+            border:
+              '1px solid rgba(16, 185, 129, 0.3)',
+            padding: '9px 14px',
+            borderRadius:
+              'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            fontSize: '0.85rem',
+            fontSize: '0.82rem',
             color: 'var(--emerald-main)',
-            fontWeight: 600,
+            fontWeight: 700,
           }}
         >
           <FlaskConical size={16} />
-          Interactive Predictive Sandbox
+          Interactive Sandbox
         </div>
       </div>
 
-      {/* 2. Helper information */}
+      {/* How it works */}
       <div
         className="nex-card"
         style={{
-          background: 'rgba(99, 102, 241, 0.06)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
-          padding: '16px 20px',
+          background:
+            'rgba(99, 102, 241, 0.06)',
+          border:
+            '1px solid rgba(99, 102, 241, 0.2)',
+          padding: '17px 20px',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: '14px',
         }}
       >
         <Info
           size={20}
           color="var(--indigo-main)"
-          style={{ flexShrink: 0 }}
+          style={{
+            flexShrink: 0,
+            marginTop: '2px',
+          }}
         />
 
-        <p
-          style={{
-            fontSize: '0.875rem',
-            color: 'var(--text-muted)',
-            lineHeight: '1.5',
-            margin: 0,
-          }}
-        >
-          <strong style={{ color: '#FFF' }}>How it works:</strong>{' '}
-          Choose a lifestyle factor to adjust and explore a possible
-          change. The current frontend demo uses sample data and an
-          illustrative model. Real historical-data predictions can be
-          connected when the backend is ready.
-        </p>
+        <div>
+          <strong
+            style={{
+              color: '#FFF',
+              fontSize: '0.875rem',
+            }}
+          >
+            How it works
+          </strong>
+
+          <p
+            style={{
+              fontSize: '0.82rem',
+              color: 'var(--text-muted)',
+              lineHeight: 1.55,
+              margin: '4px 0 0',
+            }}
+          >
+            Choose one lifestyle factor, adjust it,
+            and explore an illustrative estimate for
+            sleep and energy. The current frontend uses
+            sample data while the backend is being
+            integrated.
+          </p>
+        </div>
       </div>
 
-      {/* 3. Simulator layout */}
+      {/* Main simulator */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns:
-            'minmax(300px, 1fr) minmax(340px, 1.2fr)',
+            'minmax(300px, 0.9fr) minmax(340px, 1.2fr)',
           gap: '24px',
         }}
       >
-        {/* Left: Configure Scenario */}
+        {/* Configuration */}
         <div
           className="nex-card"
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px',
+            gap: '22px',
           }}
         >
           <div
@@ -329,54 +439,87 @@ export default function WhatIfSimulator({
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              borderBottom: '1px solid var(--border-color)',
               paddingBottom: '14px',
+              borderBottom:
+                '1px solid var(--border-color)',
             }}
           >
-            <Sliders
-              size={20}
-              color="var(--emerald-main)"
-            />
-
-            <h3
+            <div
               style={{
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                color: '#FFF',
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background:
+                  'rgba(16, 185, 129, 0.1)',
+                color: 'var(--emerald-main)',
               }}
             >
-              1. Configure Proposed Scenario
-            </h3>
+              <Sliders size={18} />
+            </div>
+
+            <div>
+              <span
+                style={{
+                  color:
+                    'var(--text-subtle)',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                }}
+              >
+                STEP 1
+              </span>
+
+              <h3
+                style={{
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: '#FFF',
+                  marginTop: '2px',
+                }}
+              >
+                Configure Scenario
+              </h3>
+            </div>
           </div>
 
-          {/* Factor Selection */}
+          {/* Factor */}
           <div>
             <label
               style={{
                 display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: 600,
+                fontSize: '0.82rem',
+                fontWeight: 700,
                 color: 'var(--text-muted)',
                 marginBottom: '8px',
               }}
             >
-              Lifestyle Factor to Adjust
+              Lifestyle factor
             </label>
 
             <select
               value={field}
               onChange={(e) =>
-                handleFieldChange(e.target.value)
+                handleFieldChange(
+                  e.target.value
+                )
               }
               style={{
                 width: '100%',
+                boxSizing: 'border-box',
                 padding: '12px 14px',
-                background: 'var(--bg-card-subtle)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-sm)',
+                background:
+                  'var(--bg-card-subtle)',
+                border:
+                  '1px solid var(--border-color)',
+                borderRadius:
+                  'var(--radius-sm)',
                 color: '#FFF',
                 fontWeight: 600,
-                fontSize: '0.95rem',
+                fontSize: '0.9rem',
                 outline: 'none',
               }}
             >
@@ -394,39 +537,46 @@ export default function WhatIfSimulator({
             </select>
           </div>
 
-          {/* Proposed Change */}
+          {/* Delta */}
           <div>
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent:
+                  'space-between',
                 alignItems: 'center',
-                marginBottom: '8px',
+                gap: '12px',
+                marginBottom: '12px',
               }}
             >
               <label
                 style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color:
+                    'var(--text-muted)',
                 }}
               >
-                Proposed Change (Delta)
+                Proposed change
               </label>
 
               <span
                 style={{
-                  fontSize: '1.05rem',
+                  padding: '5px 9px',
+                  borderRadius: '8px',
+                  background:
+                    'rgba(16, 185, 129, 0.1)',
+                  color:
+                    'var(--emerald-main)',
+                  fontSize: '0.88rem',
                   fontWeight: 800,
-                  color: 'var(--emerald-main)',
                 }}
               >
-                {delta > 0 ? `+${delta}` : delta}{' '}
+                {formatDelta(delta)}{' '}
                 {getDeltaUnit(field)}
               </span>
             </div>
 
-            {/* Screen Time Slider */}
             {field === 'screenTime' && (
               <input
                 type="range"
@@ -435,17 +585,19 @@ export default function WhatIfSimulator({
                 step="0.5"
                 value={delta}
                 onChange={(e) =>
-                  setDelta(Number(e.target.value))
+                  setDelta(
+                    Number(e.target.value)
+                  )
                 }
                 style={{
                   width: '100%',
-                  accentColor: 'var(--emerald-main)',
+                  accentColor:
+                    'var(--emerald-main)',
                   cursor: 'pointer',
                 }}
               />
             )}
 
-            {/* Steps Slider */}
             {field === 'steps' && (
               <input
                 type="range"
@@ -454,17 +606,19 @@ export default function WhatIfSimulator({
                 step="500"
                 value={delta}
                 onChange={(e) =>
-                  setDelta(Number(e.target.value))
+                  setDelta(
+                    Number(e.target.value)
+                  )
                 }
                 style={{
                   width: '100%',
-                  accentColor: 'var(--emerald-main)',
+                  accentColor:
+                    'var(--emerald-main)',
                   cursor: 'pointer',
                 }}
               />
             )}
 
-            {/* Activity Slider */}
             {field === 'activity' && (
               <input
                 type="range"
@@ -473,11 +627,14 @@ export default function WhatIfSimulator({
                 step="5"
                 value={delta}
                 onChange={(e) =>
-                  setDelta(Number(e.target.value))
+                  setDelta(
+                    Number(e.target.value)
+                  )
                 }
                 style={{
                   width: '100%',
-                  accentColor: 'var(--emerald-main)',
+                  accentColor:
+                    'var(--emerald-main)',
                   cursor: 'pointer',
                 }}
               />
@@ -486,84 +643,100 @@ export default function WhatIfSimulator({
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '0.75rem',
-                color: 'var(--text-subtle)',
-                marginTop: '4px',
+                justifyContent:
+                  'space-between',
+                fontSize: '0.7rem',
+                color:
+                  'var(--text-subtle)',
+                marginTop: '6px',
               }}
             >
-              <span>Decrease (-)</span>
-              <span>Increase (+)</span>
+              <span>Decrease</span>
+              <span>Increase</span>
             </div>
           </div>
 
-          {/* Preset Scenarios */}
+          {/* Presets */}
           <div>
             <span
               style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-subtle)',
-                fontWeight: 700,
+                fontSize: '0.7rem',
+                color:
+                  'var(--text-subtle)',
+                fontWeight: 800,
                 display: 'block',
-                marginBottom: '8px',
-                letterSpacing: '0.05em',
+                marginBottom: '9px',
+                letterSpacing: '0.06em',
               }}
             >
-              POPULAR PRESET SCENARIOS
+              QUICK SCENARIOS
             </span>
 
             <div
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(3, 1fr)',
                 gap: '8px',
-                flexWrap: 'wrap',
               }}
             >
               <button
                 className="btn-secondary"
                 style={{
-                  fontSize: '0.8rem',
-                  padding: '6px 12px',
+                  fontSize: '0.76rem',
+                  padding: '8px 8px',
+                  justifyContent:
+                    'center',
                 }}
-                onClick={() => {
-                  setField('screenTime');
-                  setDelta(-2);
-                }}
+                onClick={() =>
+                  applyPreset(
+                    'screenTime',
+                    -2
+                  )
+                }
               >
-                -2h Screen Time
+                -2h Screen
               </button>
 
               <button
                 className="btn-secondary"
                 style={{
-                  fontSize: '0.8rem',
-                  padding: '6px 12px',
+                  fontSize: '0.76rem',
+                  padding: '8px 8px',
+                  justifyContent:
+                    'center',
                 }}
-                onClick={() => {
-                  setField('steps');
-                  setDelta(3000);
-                }}
+                onClick={() =>
+                  applyPreset(
+                    'steps',
+                    3000
+                  )
+                }
               >
-                +3,000 Steps
+                +3k Steps
               </button>
 
               <button
                 className="btn-secondary"
                 style={{
-                  fontSize: '0.8rem',
-                  padding: '6px 12px',
+                  fontSize: '0.76rem',
+                  padding: '8px 8px',
+                  justifyContent:
+                    'center',
                 }}
-                onClick={() => {
-                  setField('activity');
-                  setDelta(30);
-                }}
+                onClick={() =>
+                  applyPreset(
+                    'activity',
+                    30
+                  )
+                }
               >
                 +30m Activity
               </button>
             </div>
           </div>
 
-          {/* Recalculate */}
+          {/* Run */}
           <button
             className="btn-primary"
             onClick={handleSimulate}
@@ -571,13 +744,17 @@ export default function WhatIfSimulator({
             style={{
               width: '100%',
               justifyContent: 'center',
-              marginTop: '6px',
+              marginTop: '2px',
+              padding: '13px 16px',
             }}
           >
             {loading ? (
               <RefreshCw
                 size={18}
-                className="animate-spin"
+                style={{
+                  animation:
+                    'spin 1s linear infinite',
+                }}
               />
             ) : (
               <Play size={18} />
@@ -585,451 +762,689 @@ export default function WhatIfSimulator({
 
             {loading
               ? 'Running Simulation...'
-              : 'Recalculate Simulation'}
+              : 'Run Simulation'}
           </button>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '9px',
+              alignItems:
+                'flex-start',
+              padding: '11px 12px',
+              borderRadius:
+                'var(--radius-sm)',
+              background:
+                'rgba(255,255,255,0.025)',
+              border:
+                '1px solid var(--border-color)',
+            }}
+          >
+            <Target
+              size={15}
+              color="var(--text-subtle)"
+              style={{
+                flexShrink: 0,
+                marginTop: '2px',
+              }}
+            />
+
+            <span
+              style={{
+                fontSize: '0.72rem',
+                color:
+                  'var(--text-subtle)',
+                lineHeight: 1.5,
+              }}
+            >
+              Try small, measurable changes so you
+              can compare them with your actual data
+              later.
+            </span>
+          </div>
         </div>
 
-        {/* Right: Results */}
+        {/* Results */}
         <div
           className="nex-card"
           style={{
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
             background:
               'linear-gradient(135deg, #121826 0%, #161F30 100%)',
             border:
               '1px solid rgba(16, 185, 129, 0.25)',
           }}
         >
-          <div>
-            {/* Results Header */}
+          {/* Results header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent:
+                'space-between',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap',
+              marginBottom: '20px',
+            }}
+          >
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '20px',
+                gap: '10px',
               }}
             >
               <div
                 style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
+                  justifyContent: 'center',
+                  background:
+                    'rgba(16, 185, 129, 0.1)',
                 }}
               >
                 <Sparkles
-                  size={20}
+                  size={18}
                   color="var(--emerald-main)"
                 />
+              </div>
+
+              <div>
+                <span
+                  style={{
+                    color:
+                      'var(--text-subtle)',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    letterSpacing:
+                      '0.06em',
+                  }}
+                >
+                  STEP 2
+                </span>
 
                 <h3
                   style={{
-                    fontSize: '1.1rem',
+                    fontSize: '1.05rem',
                     fontWeight: 700,
                     color: '#FFF',
+                    marginTop: '2px',
                   }}
                 >
-                  2. Simulation Output
+                  Simulation Output
                 </h3>
               </div>
-
-              <span className="badge badge-emerald">
-                Confidence: {confidence}
-              </span>
             </div>
 
-            {/* Loading */}
-            {loading && (
-              <div
+            <span className="badge badge-emerald">
+              {confidence === 'demo'
+                ? 'Demo Estimate'
+                : `Confidence: ${confidence}`}
+            </span>
+          </div>
+
+          {/* Loading */}
+          {loading && (
+            <div
+              style={{
+                minHeight: '280px',
+                display: 'flex',
+                flexDirection:
+                  'column',
+                alignItems:
+                  'center',
+                justifyContent:
+                  'center',
+                textAlign: 'center',
+              }}
+            >
+              <RefreshCw
+                size={30}
+                color="var(--emerald-main)"
                 style={{
-                  padding: '40px',
-                  textAlign: 'center',
+                  animation:
+                    'spin 1s linear infinite',
+                }}
+              />
+
+              <p
+                style={{
+                  marginTop: '14px',
+                  color:
+                    'var(--text-muted)',
+                  fontSize: '0.88rem',
                 }}
               >
-                <RefreshCw
-                  size={28}
-                  className="animate-spin"
-                  color="var(--emerald-main)"
-                />
+                Exploring your scenario...
+              </p>
+            </div>
+          )}
 
-                <p
+          {/* Error */}
+          {error && !loading && (
+            <div
+              style={{
+                padding: '16px',
+                background:
+                  'rgba(244, 63, 94, 0.1)',
+                border:
+                  '1px solid rgba(244, 63, 94, 0.3)',
+                borderRadius:
+                  'var(--radius-sm)',
+                color:
+                  'var(--rose-main)',
+                fontSize: '0.85rem',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Results */}
+          {!loading && !error && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection:
+                  'column',
+                gap: '18px',
+                flex: 1,
+              }}
+            >
+              {/* Scenario summary */}
+              <div
+                style={{
+                  padding:
+                    '14px 16px',
+                  borderRadius:
+                    'var(--radius-sm)',
+                  background:
+                    'rgba(16, 185, 129, 0.08)',
+                  border:
+                    '1px solid rgba(16, 185, 129, 0.22)',
+                }}
+              >
+                <span
                   style={{
-                    marginTop: '12px',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.9rem',
+                    display: 'block',
+                    fontSize:
+                      '0.7rem',
+                    color:
+                      'var(--text-subtle)',
+                    fontWeight: 700,
+                    letterSpacing:
+                      '0.05em',
+                    marginBottom:
+                      '5px',
                   }}
                 >
-                  Running simulation...
-                </p>
-              </div>
-            )}
+                  PROPOSED SCENARIO
+                </span>
 
-            {/* Error */}
-            {error && (
+                <strong
+                  style={{
+                    color:
+                      'var(--emerald-main)',
+                    fontSize:
+                      '1rem',
+                  }}
+                >
+                  {formatLabel(field)}{' '}
+                  {formatDelta(delta)}{' '}
+                  {getDeltaUnit(field)}
+                </strong>
+              </div>
+
+              {/* Current vs estimated */}
               <div
                 style={{
-                  padding: '16px',
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr',
+                  gap: '0',
                   background:
-                    'rgba(244, 63, 94, 0.1)',
+                    'rgba(0, 0, 0, 0.22)',
+                  borderRadius:
+                    'var(--radius-md)',
                   border:
-                    '1px solid rgba(244, 63, 94, 0.3)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: 'var(--rose-main)',
-                  fontSize: '0.875rem',
+                    '1px solid var(--border-color)',
+                  overflow: 'hidden',
                 }}
               >
-                {error}
-              </div>
-            )}
-
-            {/* Results */}
-            {!loading && !error && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '20px',
-                }}
-              >
-                {/* Proposed Change */}
+                {/* Current */}
                 <div
                   style={{
-                    background:
-                      'rgba(16, 185, 129, 0.08)',
-                    border:
-                      '1px solid rgba(16, 185, 129, 0.25)',
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '0.875rem',
+                    padding: '20px',
                   }}
                 >
                   <span
                     style={{
-                      color: 'var(--text-muted)',
+                      fontSize:
+                        '0.68rem',
+                      color:
+                        'var(--text-subtle)',
+                      fontWeight: 800,
+                      letterSpacing:
+                        '0.05em',
                     }}
                   >
-                    Proposed Change:
+                    CURRENT
                   </span>
 
-                  <strong
-                    style={{
-                      color: 'var(--emerald-main)',
-                      fontSize: '0.95rem',
-                    }}
-                  >
-                    {formatLabel(field)}{' '}
-                    {delta > 0 ? `+${delta}` : delta}{' '}
-                    {getDeltaUnit(field)}
-                  </strong>
-                </div>
-
-                {/* Current vs Estimated */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      '1fr 1fr',
-                    gap: '16px',
-                    background:
-                      'rgba(0, 0, 0, 0.25)',
-                    padding: '20px',
-                    borderRadius: 'var(--radius-md)',
-                    border:
-                      '1px solid var(--border-color)',
-                  }}
-                >
-                  {/* Current */}
-                  <div>
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-subtle)',
-                        fontWeight: 700,
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      CURRENT BASELINE
-                    </span>
-
-                    <div
-                      style={{
-                        marginTop: '14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <Moon
-                          size={16}
-                          color="#3B82F6"
-                        />
-
-                        <span
-                          style={{
-                            fontSize: '0.875rem',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          Sleep:
-                        </span>
-
-                        <strong
-                          style={{
-                            fontSize: '1.1rem',
-                            color: '#FFF',
-                          }}
-                        >
-                          {current.sleep !==
-                            undefined &&
-                          current.sleep !== null
-                            ? `${current.sleep} hrs`
-                            : 'N/A'}
-                        </strong>
-                      </div>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <Zap
-                          size={16}
-                          color="#6366F1"
-                        />
-
-                        <span
-                          style={{
-                            fontSize: '0.875rem',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          Energy:
-                        </span>
-
-                        <strong
-                          style={{
-                            fontSize: '1.1rem',
-                            color: '#FFF',
-                          }}
-                        >
-                          {current.energy !==
-                            undefined &&
-                          current.energy !== null
-                            ? `${current.energy} / 10`
-                            : 'N/A'}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Estimated */}
                   <div
                     style={{
-                      borderLeft:
-                        '1px solid var(--border-color)',
-                      paddingLeft: '16px',
+                      marginTop:
+                        '16px',
+                      display: 'flex',
+                      flexDirection:
+                        'column',
+                      gap: '16px',
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--emerald-main)',
-                        fontWeight: 700,
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      ESTIMATED RESULT
-                    </span>
-
-                    <div
-                      style={{
-                        marginTop: '14px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                      }}
-                    >
+                    <div>
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: '7px',
+                          marginBottom:
+                            '5px',
                         }}
                       >
                         <Moon
-                          size={16}
+                          size={15}
                           color="#3B82F6"
                         />
 
                         <span
                           style={{
-                            fontSize: '0.875rem',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          Sleep:
-                        </span>
-
-                        <strong
-                          style={{
-                            fontSize: '1.2rem',
+                            fontSize:
+                              '0.75rem',
                             color:
-                              'var(--emerald-main)',
-                            fontWeight: 800,
+                              'var(--text-muted)',
                           }}
                         >
-                          {estimated.sleep !==
-                            undefined &&
-                          estimated.sleep !== null
-                            ? `${estimated.sleep} hrs`
-                            : 'N/A'}
-                        </strong>
-
-                        {estimated.sleep !==
-                          undefined &&
-                          current.sleep !==
-                            undefined && (
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                color:
-                                  estimated.sleep >=
-                                  current.sleep
-                                    ? 'var(--emerald-main)'
-                                    : 'var(--amber-main)',
-                                fontWeight: 700,
-                              }}
-                            >
-                              (
-                              {estimated.sleep >=
-                              current.sleep
-                                ? '+'
-                                : ''}
-                              {(
-                                estimated.sleep -
-                                current.sleep
-                              ).toFixed(1)}
-                              h)
-                            </span>
-                          )}
+                          Sleep
+                        </span>
                       </div>
 
+                      <strong
+                        style={{
+                          fontSize:
+                            '1.25rem',
+                          color:
+                            '#FFF',
+                        }}
+                      >
+                        {current.sleep ??
+                          '—'}
+                        <span
+                          style={{
+                            fontSize:
+                              '0.7rem',
+                            color:
+                              'var(--text-subtle)',
+                            marginLeft:
+                              '4px',
+                          }}
+                        >
+                          hrs
+                        </span>
+                      </strong>
+                    </div>
+
+                    <div>
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: '7px',
+                          marginBottom:
+                            '5px',
                         }}
                       >
                         <Zap
-                          size={16}
+                          size={15}
                           color="#6366F1"
                         />
 
                         <span
                           style={{
-                            fontSize: '0.875rem',
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          Energy:
-                        </span>
-
-                        <strong
-                          style={{
-                            fontSize: '1.2rem',
+                            fontSize:
+                              '0.75rem',
                             color:
-                              'var(--emerald-main)',
-                            fontWeight: 800,
+                              'var(--text-muted)',
                           }}
                         >
-                          {estimated.energy !==
-                            undefined &&
-                          estimated.energy !== null
-                            ? `${estimated.energy} / 10`
-                            : 'N/A'}
-                        </strong>
-
-                        {estimated.energy !==
-                          undefined &&
-                          current.energy !==
-                            undefined && (
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                color:
-                                  estimated.energy >=
-                                  current.energy
-                                    ? 'var(--emerald-main)'
-                                    : 'var(--amber-main)',
-                                fontWeight: 700,
-                              }}
-                            >
-                              (
-                              {estimated.energy >=
-                              current.energy
-                                ? '+'
-                                : ''}
-                              {(
-                                estimated.energy -
-                                current.energy
-                              ).toFixed(1)}
-                              )
-                            </span>
-                          )}
+                          Energy
+                        </span>
                       </div>
+
+                      <strong
+                        style={{
+                          fontSize:
+                            '1.25rem',
+                          color:
+                            '#FFF',
+                        }}
+                      >
+                        {current.energy ??
+                          '—'}
+                        <span
+                          style={{
+                            fontSize:
+                              '0.7rem',
+                            color:
+                              'var(--text-subtle)',
+                            marginLeft:
+                              '4px',
+                          }}
+                        >
+                          / 10
+                        </span>
+                      </strong>
                     </div>
                   </div>
                 </div>
 
-                {/* Disclaimer */}
+                {/* Estimated */}
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px',
-                    fontSize: '0.775rem',
-                    color: 'var(--text-subtle)',
-                    background:
-                      'rgba(255, 255, 255, 0.03)',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    border:
+                    padding: '20px',
+                    borderLeft:
                       '1px solid var(--border-color)',
+                    background:
+                      'rgba(16, 185, 129, 0.035)',
                   }}
                 >
-                  <ShieldAlert
-                    size={16}
-                    color="var(--amber-main)"
+                  <span
                     style={{
-                      flexShrink: 0,
-                      marginTop: '2px',
+                      fontSize:
+                        '0.68rem',
+                      color:
+                        'var(--emerald-main)',
+                      fontWeight: 800,
+                      letterSpacing:
+                        '0.05em',
                     }}
-                  />
-
-                  <span>
-                    This is an illustrative model-based
-                    estimate, not a guaranteed outcome or
-                    medical prediction.
+                  >
+                    ESTIMATED
                   </span>
+
+                  <div
+                    style={{
+                      marginTop:
+                        '16px',
+                      display: 'flex',
+                      flexDirection:
+                        'column',
+                      gap: '16px',
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: '7px',
+                          marginBottom:
+                            '5px',
+                        }}
+                      >
+                        <Moon
+                          size={15}
+                          color="#3B82F6"
+                        />
+
+                        <span
+                          style={{
+                            fontSize:
+                              '0.75rem',
+                            color:
+                              'var(--text-muted)',
+                          }}
+                        >
+                          Sleep
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'baseline',
+                          gap: '6px',
+                          flexWrap:
+                            'wrap',
+                        }}
+                      >
+                        <strong
+                          style={{
+                            fontSize:
+                              '1.25rem',
+                            color:
+                              'var(--emerald-main)',
+                          }}
+                        >
+                          {estimated.sleep ??
+                            '—'}
+                          <span
+                            style={{
+                              fontSize:
+                                '0.7rem',
+                              marginLeft:
+                                '4px',
+                            }}
+                          >
+                            hrs
+                          </span>
+                        </strong>
+
+                        {sleepDifference !==
+                          null && (
+                          <span
+                            style={{
+                              fontSize:
+                                '0.7rem',
+                              fontWeight: 800,
+                              color:
+                                sleepDifference >=
+                                0
+                                  ? 'var(--emerald-main)'
+                                  : 'var(--amber-main)',
+                            }}
+                          >
+                            {sleepDifference >=
+                            0
+                              ? '+'
+                              : ''}
+                            {sleepDifference}h
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'center',
+                          gap: '7px',
+                          marginBottom:
+                            '5px',
+                        }}
+                      >
+                        <Zap
+                          size={15}
+                          color="#6366F1"
+                        />
+
+                        <span
+                          style={{
+                            fontSize:
+                              '0.75rem',
+                            color:
+                              'var(--text-muted)',
+                          }}
+                        >
+                          Energy
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display:
+                            'flex',
+                          alignItems:
+                            'baseline',
+                          gap: '6px',
+                          flexWrap:
+                            'wrap',
+                        }}
+                      >
+                        <strong
+                          style={{
+                            fontSize:
+                              '1.25rem',
+                            color:
+                              'var(--emerald-main)',
+                          }}
+                        >
+                          {estimated.energy ??
+                            '—'}
+                          <span
+                            style={{
+                              fontSize:
+                                '0.7rem',
+                              marginLeft:
+                                '4px',
+                            }}
+                          >
+                            / 10
+                          </span>
+                        </strong>
+
+                        {energyDifference !==
+                          null && (
+                          <span
+                            style={{
+                              fontSize:
+                                '0.7rem',
+                              fontWeight: 800,
+                              color:
+                                energyDifference >=
+                                0
+                                  ? 'var(--emerald-main)'
+                                  : 'var(--amber-main)',
+                            }}
+                          >
+                            {energyDifference >=
+                            0
+                              ? '+'
+                              : ''}
+                            {energyDifference}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Interpretation */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems:
+                    'flex-start',
+                  gap: '10px',
+                  padding:
+                    '12px 14px',
+                  borderRadius:
+                    'var(--radius-sm)',
+                  background:
+                    'rgba(255,255,255,0.025)',
+                  border:
+                    '1px solid var(--border-color)',
+                }}
+              >
+                <TrendingUp
+                  size={16}
+                  color="var(--indigo-main)"
+                  style={{
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                />
+
+                <span
+                  style={{
+                    fontSize:
+                      '0.75rem',
+                    color:
+                      'var(--text-muted)',
+                    lineHeight: 1.55,
+                  }}
+                >
+                  The estimate shows how the
+                  illustrative demo model responds to
+                  your selected change. Compare future
+                  observations with this scenario rather
+                  than treating it as a guaranteed result.
+                </span>
+              </div>
+
+              {/* Disclaimer */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems:
+                    'flex-start',
+                  gap: '10px',
+                  fontSize:
+                    '0.72rem',
+                  color:
+                    'var(--text-subtle)',
+                  padding:
+                    '11px 13px',
+                  borderRadius:
+                    'var(--radius-sm)',
+                  background:
+                    'rgba(245, 158, 11, 0.05)',
+                  border:
+                    '1px solid rgba(245, 158, 11, 0.16)',
+                }}
+              >
+                <ShieldAlert
+                  size={15}
+                  color="var(--amber-main)"
+                  style={{
+                    flexShrink: 0,
+                    marginTop: '2px',
+                  }}
+                />
+
+                <span>
+                  This is an illustrative estimate using
+                  demo data. It is not a guaranteed outcome
+                  or medical prediction.
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Experiment CTA */}
           <div
@@ -1048,16 +1463,35 @@ export default function WhatIfSimulator({
                   targetChange: delta,
                 })
               }
+              disabled={
+                loading || !!error
+              }
               style={{
                 width: '100%',
-                justifyContent: 'center',
+                justifyContent:
+                  'center',
                 padding: '14px 20px',
-                fontSize: '0.95rem',
+                fontSize: '0.9rem',
               }}
             >
               Turn Scenario into 7-Day Experiment
               <ArrowRight size={18} />
             </button>
+
+            <p
+              style={{
+                textAlign: 'center',
+                margin:
+                  '9px 0 0',
+                color:
+                  'var(--text-subtle)',
+                fontSize:
+                  '0.7rem',
+              }}
+            >
+              Measure the change with your actual
+              data over time.
+            </p>
           </div>
         </div>
       </div>
