@@ -1,86 +1,89 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || '/api';
 
-/**
- * Utility to make API requests with consistent error handling
- */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+
+  const token = localStorage.getItem('nexwell_token');
+
   const config = {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token
+        ? { Authorization: `Bearer ${token}` }
+        : {}),
+      ...(options.headers || {}),
     },
-    ...options,
   };
 
-  try {
-    const response = await fetch(url, config);
-    const data = await response.json();
+  const response = await fetch(url, config);
 
-    if (!response.ok) {
-      throw new Error(data.message || `Request failed with status ${response.status}`);
-    }
+  const data = await response.json();
 
-    return data;
-  } catch (error) {
-    console.error(`API Error [${endpoint}]:`, error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        `Request failed with status ${response.status}`
+    );
   }
+
+  return data;
 }
 
 export const api = {
-  /**
-   * Fetch historical lifestyle metrics for a user
-   * GET /api/lifestyle/:userId
-   */
-  getLifestyleData: (userId) => request(`/lifestyle/${userId}`),
-
-  /**
-   * Analyze lifestyle patterns and correlations
-   * POST /api/analyze
-   */
-  analyzePatterns: (userId) =>
-    request('/analyze', {
+  signup: (name, email, password) =>
+    request('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ userId: Number(userId) }),
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
     }),
 
-  /**
-   * Run a What-If simulation based on historical patterns
-   * POST /api/simulate
-   */
-  runSimulation: (userId, field, delta) =>
+  login: (email, password) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    }),
+
+  getLifestyleData: (userId) =>
+    request(`/lifestyle/${userId}`),
+
+  analyzePatterns: (_userId) =>
+    request('/analyze', {
+      method: 'POST',
+    }),
+
+  runSimulation: (_userId, field, delta) =>
     request('/simulate', {
       method: 'POST',
       body: JSON.stringify({
-        userId: Number(userId),
         field,
         delta: Number(delta),
       }),
     }),
 
-  /**
-   * Start a new 7-day personal experiment
-   * POST /api/experiments
-   */
-  startExperiment: (userId, goalField, targetChange) =>
+  startExperiment: (
+    _userId,
+    goalField,
+    targetChange
+  ) =>
     request('/experiments', {
       method: 'POST',
       body: JSON.stringify({
-        userId: Number(userId),
         goalField,
         targetChange: Number(targetChange),
       }),
     }),
 
-  /**
-   * Get all active and completed experiments for a user
-   * GET /api/experiments/:userId
-   */
-  getExperiments: (userId) => request(`/experiments/${userId}`),
+  getExperiments: (userId) =>
+    request(`/experiments/${userId}`),
 
-  /**
-   * Compare metrics before vs during a 7-day experiment
-   * GET /api/compare/:experimentId
-   */
-  compareExperiment: (experimentId) => request(`/compare/${experimentId}`),
+  compareExperiment: (experimentId) =>
+    request(`/compare/${experimentId}`),
 };

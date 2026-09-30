@@ -6,10 +6,13 @@ import {
   EyeOff,
   ShieldCheck
 } from 'lucide-react';
+import { api } from '../services/api';
 
 function Auth({ onLogin }) {
   const [mode, setMode] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -28,12 +31,48 @@ function Auth({ onLogin }) {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Frontend demo only.
-    // Replace this with the real authentication API later.
-    onLogin?.();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = isSignup
+        ? await api.signup(
+            form.name,
+            form.email,
+            form.password
+          )
+        : await api.login(
+            form.email,
+            form.password
+          );
+
+      localStorage.setItem(
+        'nexwell_token',
+        response.token
+      );
+
+      const user = response.user || {
+        id: response.userId,
+        name: form.name,
+        email: form.email
+      };
+
+      localStorage.setItem(
+        'nexwell_user',
+        JSON.stringify(user)
+      );
+
+      onLogin?.(user);
+    } catch (err) {
+      setError(
+        err.message || 'Authentication failed'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,66 +100,60 @@ function Auth({ onLogin }) {
           </h1>
 
           <p>
-            NexWell helps you understand your personal wellness
-            signals, explore patterns, and test small changes
-            through measurable experiments.
+            Understand your lifestyle, discover patterns,
+            and experiment with healthier habits.
           </p>
+        </div>
 
-          <div className="auth-features">
-            <div>
-              <ShieldCheck size={18} />
-              <span>Your data stays personal</span>
-            </div>
-
-            <div>
-              <Activity size={18} />
-              <span>Built around your own signals</span>
-            </div>
-          </div>
+        <div className="auth-visual-footer">
+          <ShieldCheck size={18} />
+          <span>Your data stays private and secure.</span>
         </div>
       </section>
 
-      <section className="auth-panel">
+      <section className="auth-card-wrap">
         <div className="auth-card">
           <div className="auth-card-header">
-            <span className="section-kicker">
-              {isSignup ? 'GET STARTED' : 'WELCOME BACK'}
-            </span>
-
             <h2>
               {isSignup
-                ? 'Create your NexWell account'
+                ? 'Create your account'
                 : 'Welcome back'}
             </h2>
 
             <p>
               {isSignup
-                ? 'Start building a personalized wellness picture.'
-                : 'Continue exploring your personal wellness journey.'}
+                ? 'Start your personal wellness journey.'
+                : 'Continue your wellness journey.'}
             </p>
           </div>
 
-          <div className="auth-tabs">
+          <div className="auth-toggle">
             <button
               type="button"
               className={!isSignup ? 'active' : ''}
-              onClick={() => setMode('login')}
+              onClick={() => {
+                setMode('login');
+                setError('');
+              }}
             >
-              Log in
+              Login
             </button>
 
             <button
               type="button"
               className={isSignup ? 'active' : ''}
-              onClick={() => setMode('signup')}
+              onClick={() => {
+                setMode('signup');
+                setError('');
+              }}
             >
               Sign up
             </button>
           </div>
 
           <form
-            onSubmit={handleSubmit}
             className="auth-form"
+            onSubmit={handleSubmit}
           >
             {isSignup && (
               <label>
@@ -153,9 +186,13 @@ function Auth({ onLogin }) {
             <label>
               <span>Password</span>
 
-              <div className="password-field">
+              <div className="auth-password-field">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={
+                    showPassword
+                      ? 'text'
+                      : 'password'
+                  }
                   name="password"
                   value={form.password}
                   onChange={handleChange}
@@ -165,9 +202,11 @@ function Auth({ onLogin }) {
 
                 <button
                   type="button"
-                  className="password-toggle"
+                  className="auth-password-toggle"
                   onClick={() =>
-                    setShowPassword((current) => !current)
+                    setShowPassword(
+                      (current) => !current
+                    )
                   }
                   aria-label={
                     showPassword
@@ -176,27 +215,60 @@ function Auth({ onLogin }) {
                   }
                 >
                   {showPassword ? (
-                    <EyeOff size={17} />
+                    <EyeOff size={18} />
                   ) : (
-                    <Eye size={17} />
+                    <Eye size={18} />
                   )}
                 </button>
               </div>
             </label>
 
+            {error && (
+              <p
+                className="auth-demo-note"
+                style={{ color: '#b42318' }}
+              >
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
               className="auth-submit"
+              disabled={loading}
             >
-              {isSignup ? 'Create account' : 'Continue'}
+              <span>
+                {loading
+                  ? 'Please wait...'
+                  : isSignup
+                    ? 'Create account'
+                    : 'Continue'}
+              </span>
 
-              <ArrowRight size={17} />
+              {!loading && (
+                <ArrowRight size={18} />
+              )}
             </button>
           </form>
 
-          <p className="auth-demo-note">
-            Demo mode: authentication is simulated locally.
-            Real account integration can be connected later.
+          <p className="auth-footer-text">
+            {isSignup
+              ? 'Already have an account?'
+              : "Don't have an account?"}{' '}
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode(
+                  isSignup
+                    ? 'login'
+                    : 'signup'
+                );
+                setError('');
+              }}
+            >
+              {isSignup ? 'Login' : 'Sign up'}
+            </button>
           </p>
         </div>
       </section>

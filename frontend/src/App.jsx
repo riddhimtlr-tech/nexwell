@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+
 import './App.css';
 
 import Auth from './components/Auth';
@@ -13,11 +14,20 @@ import ConnectedDevices from './components/ConnectedDevices';
 import { api } from './services/api';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return Boolean(localStorage.getItem('nexwell_token'));
+  });
 
-  const [userId] = useState('1');
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('nexwell_user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeTab, setActiveTab] = useState('overview');
-
   const [lifestyleData, setLifestyleData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,6 +37,8 @@ function App() {
 
   const [prefilledScenarioForExperiment, setPrefilledScenarioForExperiment] =
     useState(null);
+
+  const userId = user?.id;
 
   const demoLifestyleData = [
     {
@@ -86,6 +98,12 @@ function App() {
   ];
 
   const loadLifestyleData = async () => {
+    if (!userId) {
+      setLifestyleData([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -116,13 +134,24 @@ function App() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && userId) {
       loadLifestyleData();
     }
-  }, [userId, isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
-  const handleLogin = () => {
+  const handleLogin = (loggedInUser) => {
+    setUser(loggedInUser);
     setIsAuthenticated(true);
+    setActiveTab('overview');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('nexwell_token');
+    localStorage.removeItem('nexwell_user');
+
+    setUser(null);
+    setIsAuthenticated(false);
+    setLifestyleData([]);
     setActiveTab('overview');
   };
 
@@ -219,6 +248,8 @@ function App() {
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onLogout={handleLogout}
+        user={user}
       />
 
       <main className="main-content">
