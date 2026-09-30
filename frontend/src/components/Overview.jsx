@@ -1,4 +1,5 @@
 import React from 'react';
+
 import {
   Moon,
   Footprints,
@@ -36,8 +37,11 @@ export default function Overview({
           size={32}
           className="animate-spin"
           color="var(--emerald-main)"
-          style={{ animation: 'spin 1s linear infinite' }}
+          style={{
+            animation: 'spin 1s linear infinite',
+          }}
         />
+
         <p
           style={{
             marginTop: '16px',
@@ -69,7 +73,13 @@ export default function Overview({
           }}
         >
           <AlertCircle size={24} />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+
+          <h3
+            style={{
+              fontSize: '1.1rem',
+              fontWeight: 700,
+            }}
+          >
             Unable to Load Lifestyle Data
           </h3>
         </div>
@@ -84,7 +94,10 @@ export default function Overview({
           {error}
         </p>
 
-        <button className="btn-secondary" onClick={onRefresh}>
+        <button
+          className="btn-secondary"
+          onClick={onRefresh}
+        >
           <RefreshCw size={16} />
           Retry
         </button>
@@ -106,10 +119,17 @@ export default function Overview({
         <AlertCircle
           size={36}
           color="var(--amber-main)"
-          style={{ margin: '0 auto 12px' }}
+          style={{
+            margin: '0 auto 12px',
+          }}
         />
 
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+        <h3
+          style={{
+            fontSize: '1.2rem',
+            fontWeight: 700,
+          }}
+        >
           No Recent Wellness Data
         </h3>
 
@@ -119,7 +139,8 @@ export default function Overview({
             marginTop: '8px',
           }}
         >
-          No recent wellness entries are available for this profile yet.
+          No recent wellness entries are available for this
+          profile yet.
         </p>
       </div>
     );
@@ -132,7 +153,11 @@ export default function Overview({
 
   const latest = sortedRows[sortedRows.length - 1] || {};
 
-  const formatVal = (val, suffix = '', fallback = 'N/A') => {
+  const formatVal = (
+    val,
+    suffix = '',
+    fallback = 'N/A'
+  ) => {
     if (
       val === null ||
       val === undefined ||
@@ -151,7 +176,9 @@ export default function Overview({
 
   const calcAvg = (primary, secondary) => {
     const values = rows
-      .map((row) => getValue(row, primary, secondary))
+      .map((row) =>
+        getValue(row, primary, secondary)
+      )
       .filter(
         (value) =>
           value !== null &&
@@ -163,24 +190,44 @@ export default function Overview({
 
     if (values.length === 0) return null;
 
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return (
+      values.reduce(
+        (sum, value) => sum + value,
+        0
+      ) / values.length
+    );
   };
 
   const avgSleep = calcAvg('sleep', 'sleep');
   const avgSteps = calcAvg('steps', 'steps');
-  const avgScreen = calcAvg('screenTime', 'screen_time');
-  const avgActivity = calcAvg('activity', 'activity');
-  const avgHeartRate = calcAvg('heartRate', 'heart_rate');
+  const avgScreen = calcAvg(
+    'screenTime',
+    'screen_time'
+  );
+  const avgActivity = calcAvg(
+    'activity',
+    'activity'
+  );
+  const avgHeartRate = calcAvg(
+    'heartRate',
+    'heart_rate'
+  );
   const avgEnergy = calcAvg('energy', 'energy');
 
   const roundedAvgSteps =
-    avgSteps !== null ? Math.round(avgSteps) : null;
+    avgSteps !== null
+      ? Math.round(avgSteps)
+      : null;
 
   const roundedAvgActivity =
-    avgActivity !== null ? Math.round(avgActivity) : null;
+    avgActivity !== null
+      ? Math.round(avgActivity)
+      : null;
 
   const roundedAvgHeartRate =
-    avgHeartRate !== null ? Math.round(avgHeartRate) : null;
+    avgHeartRate !== null
+      ? Math.round(avgHeartRate)
+      : null;
 
   const latestScreenTime = getValue(
     latest,
@@ -195,11 +242,14 @@ export default function Overview({
   );
 
   const latestDateStr = latest.date
-    ? new Date(latest.date).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? new Date(latest.date).toLocaleDateString(
+        undefined,
+        {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }
+      )
     : 'Today';
 
   const statCards = [
@@ -207,7 +257,8 @@ export default function Overview({
       label: 'Sleep Duration',
       unit: 'hrs',
       value:
-        latest.sleep !== undefined && latest.sleep !== null
+        latest.sleep !== undefined &&
+        latest.sleep !== null
           ? Number(latest.sleep).toFixed(1)
           : 'N/A',
       avg:
@@ -222,8 +273,11 @@ export default function Overview({
       label: 'Daily Steps',
       unit: 'steps',
       value:
-        latest.steps !== undefined && latest.steps !== null
-          ? Number(latest.steps).toLocaleString()
+        latest.steps !== undefined &&
+        latest.steps !== null
+          ? Number(
+              latest.steps
+            ).toLocaleString()
           : 'N/A',
       avg:
         roundedAvgSteps !== null
@@ -239,7 +293,9 @@ export default function Overview({
       value:
         latestScreenTime !== undefined &&
         latestScreenTime !== null
-          ? Number(latestScreenTime).toFixed(1)
+          ? Number(
+              latestScreenTime
+            ).toFixed(1)
           : 'N/A',
       avg:
         avgScreen !== null
@@ -255,7 +311,9 @@ export default function Overview({
       value:
         latest.activity !== undefined &&
         latest.activity !== null
-          ? Math.round(Number(latest.activity))
+          ? Math.round(
+              Number(latest.activity)
+            )
           : 'N/A',
       avg:
         roundedAvgActivity !== null
@@ -271,7 +329,9 @@ export default function Overview({
       value:
         latestHeartRate !== undefined &&
         latestHeartRate !== null
-          ? Math.round(Number(latestHeartRate))
+          ? Math.round(
+              Number(latestHeartRate)
+            )
           : 'N/A',
       avg:
         roundedAvgHeartRate !== null
@@ -287,7 +347,9 @@ export default function Overview({
       value:
         latest.energy !== undefined &&
         latest.energy !== null
-          ? Number(latest.energy).toFixed(1)
+          ? Number(
+              latest.energy
+            ).toFixed(1)
           : 'N/A',
       avg:
         avgEnergy !== null
@@ -303,8 +365,10 @@ export default function Overview({
    * Lightweight personalized observations.
    * These are descriptive, not medical conclusions.
    */
+
   const screenEnergyInsight =
-    avgScreen !== null && avgEnergy !== null
+    avgScreen !== null &&
+    avgEnergy !== null
       ? `Your recent data averages ${avgScreen.toFixed(
           1
         )} hours of screen time and ${avgEnergy.toFixed(
@@ -313,7 +377,8 @@ export default function Overview({
       : 'Your recent screen-time and energy data can be explored in Patterns.';
 
   const movementInsight =
-    avgSteps !== null && avgActivity !== null
+    avgSteps !== null &&
+    avgActivity !== null
       ? `Your recent movement averages ${roundedAvgSteps.toLocaleString()} steps and ${roundedAvgActivity} minutes of activity per day.`
       : 'Your movement signals will appear here as more data is recorded.';
 
@@ -346,20 +411,45 @@ export default function Overview({
         <div>
           <span
             className="badge badge-emerald"
-            style={{ marginBottom: '8px' }}
+            style={{
+              marginBottom: '8px',
+            }}
           >
             Stage 1: Track & Understand
           </span>
 
-          <h1 className="section-title">
-            Your Wellness Snapshot
-          </h1>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '8px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <h1
+              className="section-title"
+              style={{
+                marginBottom: 0,
+              }}
+            >
+              Welcome back
+            </h1>
+
+            <span className="badge badge-emerald">
+              Personal Dashboard
+            </span>
+          </div>
 
           <p
             className="section-subtitle"
-            style={{ marginBottom: 0 }}
+            style={{
+              marginBottom: 0,
+            }}
           >
-            A personalized view of your recent wellness signals and daily patterns.
+            Here's your latest wellness snapshot and
+            the patterns worth exploring from your recent
+            data.
           </p>
         </div>
 
@@ -378,7 +468,8 @@ export default function Overview({
         style={{
           background:
             'linear-gradient(135deg, rgba(16, 185, 129, 0.09) 0%, rgba(18, 24, 38, 0.96) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.25)',
+          border:
+            '1px solid rgba(16, 185, 129, 0.25)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -399,8 +490,10 @@ export default function Overview({
               width: '48px',
               height: '48px',
               borderRadius: '14px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              background:
+                'rgba(16, 185, 129, 0.15)',
+              border:
+                '1px solid rgba(16, 185, 129, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -433,7 +526,9 @@ export default function Overview({
 
               <span
                 className="badge badge-emerald"
-                style={{ fontSize: '0.7rem' }}
+                style={{
+                  fontSize: '0.7rem',
+                }}
               >
                 {rows.length} Days
               </span>
@@ -446,7 +541,12 @@ export default function Overview({
                 marginTop: '2px',
               }}
             >
-              Latest recorded data: <strong style={{ color: '#FFF' }}>
+              Latest recorded data:{' '}
+              <strong
+                style={{
+                  color: '#FFF',
+                }}
+              >
                 {latestDateStr}
               </strong>
             </p>
@@ -460,7 +560,8 @@ export default function Overview({
             background: 'rgba(0, 0, 0, 0.3)',
             padding: '10px 18px',
             borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
+            border:
+              '1px solid var(--border-color)',
             fontSize: '0.85rem',
           }}
         >
@@ -487,7 +588,8 @@ export default function Overview({
 
           <div
             style={{
-              borderLeft: '1px solid var(--border-color)',
+              borderLeft:
+                '1px solid var(--border-color)',
               paddingLeft: '16px',
             }}
           >
@@ -507,7 +609,10 @@ export default function Overview({
                 fontSize: '0.95rem',
               }}
             >
-              {formatVal(latest.energy, ' / 10')}
+              {formatVal(
+                latest.energy,
+                ' / 10'
+              )}
             </strong>
           </div>
         </div>
@@ -572,7 +677,8 @@ export default function Overview({
                   <div
                     style={{
                       display: 'flex',
-                      justifyContent: 'space-between',
+                      justifyContent:
+                        'space-between',
                       alignItems: 'center',
                       marginBottom: '10px',
                     }}
@@ -597,7 +703,10 @@ export default function Overview({
                         justifyContent: 'center',
                       }}
                     >
-                      <Icon size={18} color={card.color} />
+                      <Icon
+                        size={18}
+                        color={card.color}
+                      />
                     </div>
                   </div>
 
@@ -639,13 +748,19 @@ export default function Overview({
                     borderTop:
                       '1px solid var(--border-color)',
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    justifyContent:
+                      'space-between',
                     alignItems: 'center',
                     gap: '8px',
                     fontSize: '0.775rem',
                   }}
                 >
-                  <span style={{ color: 'var(--text-subtle)' }}>
+                  <span
+                    style={{
+                      color:
+                        'var(--text-subtle)',
+                    }}
+                  >
                     {card.desc}
                   </span>
 
@@ -654,7 +769,8 @@ export default function Overview({
                     style={{
                       background:
                         'rgba(255, 255, 255, 0.04)',
-                      color: 'var(--text-muted)',
+                      color:
+                        'var(--text-muted)',
                       border:
                         '1px solid var(--border-color)',
                       padding: '2px 8px',
@@ -677,7 +793,8 @@ export default function Overview({
         style={{
           background:
             'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          border:
+            '1px solid rgba(99, 102, 241, 0.2)',
         }}
       >
         <div
@@ -720,7 +837,8 @@ export default function Overview({
                   marginTop: '2px',
                 }}
               >
-                Signals worth exploring from your recent data
+                Signals worth exploring from your recent
+                data
               </p>
             </div>
           </div>
@@ -741,7 +859,8 @@ export default function Overview({
           <div
             style={{
               padding: '16px',
-              background: 'rgba(255,255,255,0.025)',
+              background:
+                'rgba(255,255,255,0.025)',
               border:
                 '1px solid var(--border-color)',
               borderRadius: '12px',
@@ -755,7 +874,11 @@ export default function Overview({
                 marginBottom: '8px',
               }}
             >
-              <Moon size={16} color="#3B82F6" />
+              <Moon
+                size={16}
+                color="#3B82F6"
+              />
+
               <strong style={{ color: '#FFF' }}>
                 Sleep
               </strong>
@@ -775,7 +898,8 @@ export default function Overview({
           <div
             style={{
               padding: '16px',
-              background: 'rgba(255,255,255,0.025)',
+              background:
+                'rgba(255,255,255,0.025)',
               border:
                 '1px solid var(--border-color)',
               borderRadius: '12px',
@@ -789,7 +913,11 @@ export default function Overview({
                 marginBottom: '8px',
               }}
             >
-              <Monitor size={16} color="#F59E0B" />
+              <Monitor
+                size={16}
+                color="#F59E0B"
+              />
+
               <strong style={{ color: '#FFF' }}>
                 Screen Time & Energy
               </strong>
@@ -809,7 +937,8 @@ export default function Overview({
           <div
             style={{
               padding: '16px',
-              background: 'rgba(255,255,255,0.025)',
+              background:
+                'rgba(255,255,255,0.025)',
               border:
                 '1px solid var(--border-color)',
               borderRadius: '12px',
@@ -827,6 +956,7 @@ export default function Overview({
                 size={16}
                 color="#10B981"
               />
+
               <strong style={{ color: '#FFF' }}>
                 Movement
               </strong>
@@ -899,7 +1029,9 @@ export default function Overview({
             <TrendingUp
               size={17}
               color="var(--emerald-main)"
-              style={{ flexShrink: 0 }}
+              style={{
+                flexShrink: 0,
+              }}
             />
 
             <span>{sleepInsight}</span>
@@ -916,7 +1048,9 @@ export default function Overview({
             <TrendingUp
               size={17}
               color="var(--indigo-main)"
-              style={{ flexShrink: 0 }}
+              style={{
+                flexShrink: 0,
+              }}
             />
 
             <span>{screenEnergyInsight}</span>
@@ -933,7 +1067,9 @@ export default function Overview({
             <Footprints
               size={17}
               color="var(--amber-main)"
-              style={{ flexShrink: 0 }}
+              style={{
+                flexShrink: 0,
+              }}
             />
 
             <span>{movementInsight}</span>
@@ -950,8 +1086,9 @@ export default function Overview({
             fontSize: '0.75rem',
           }}
         >
-          These observations describe patterns in the available data;
-          they do not establish cause or provide medical advice.
+          These observations describe patterns in the
+          available data; they do not establish cause or
+          provide medical advice.
         </div>
       </div>
 
@@ -1020,21 +1157,27 @@ export default function Overview({
                 <th style={{ padding: '12px 14px' }}>
                   Date
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Sleep
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Steps
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Screen Time
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Activity
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Heart Rate
                 </th>
+
                 <th style={{ padding: '12px 14px' }}>
                   Energy
                 </th>
@@ -1044,16 +1187,20 @@ export default function Overview({
             <tbody>
               {sortedRows.map((row, idx) => {
                 const isLatestRow =
-                  idx === sortedRows.length - 1;
+                  idx ===
+                  sortedRows.length - 1;
 
                 const dateStr = row.date
                   ? new Date(
                       row.date
-                    ).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
+                    ).toLocaleDateString(
+                      undefined,
+                      {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      }
+                    )
                   : `Day ${idx + 1}`;
 
                 const screen = getValue(
@@ -1073,12 +1220,15 @@ export default function Overview({
                     key={`${row.date || idx}-${idx}`}
                     style={{
                       borderBottom:
-                        idx < sortedRows.length - 1
+                        idx <
+                        sortedRows.length - 1
                           ? '1px solid rgba(255, 255, 255, 0.04)'
                           : 'none',
+
                       background: isLatestRow
                         ? 'rgba(16, 185, 129, 0.06)'
                         : 'transparent',
+
                       color: 'var(--text-main)',
                     }}
                   >
@@ -1098,7 +1248,9 @@ export default function Overview({
                           gap: '8px',
                         }}
                       >
-                        <span>{dateStr}</span>
+                        <span>
+                          {dateStr}
+                        </span>
 
                         {isLatestRow && (
                           <span
@@ -1114,11 +1266,22 @@ export default function Overview({
                       </div>
                     </td>
 
-                    <td style={{ padding: '12px 14px' }}>
-                      {formatVal(row.sleep, ' hrs')}
+                    <td
+                      style={{
+                        padding: '12px 14px',
+                      }}
+                    >
+                      {formatVal(
+                        row.sleep,
+                        ' hrs'
+                      )}
                     </td>
 
-                    <td style={{ padding: '12px 14px' }}>
+                    <td
+                      style={{
+                        padding: '12px 14px',
+                      }}
+                    >
                       {row.steps !== null &&
                       row.steps !== undefined
                         ? Number(
@@ -1127,19 +1290,37 @@ export default function Overview({
                         : 'N/A'}
                     </td>
 
-                    <td style={{ padding: '12px 14px' }}>
-                      {formatVal(screen, ' hrs')}
+                    <td
+                      style={{
+                        padding: '12px 14px',
+                      }}
+                    >
+                      {formatVal(
+                        screen,
+                        ' hrs'
+                      )}
                     </td>
 
-                    <td style={{ padding: '12px 14px' }}>
+                    <td
+                      style={{
+                        padding: '12px 14px',
+                      }}
+                    >
                       {formatVal(
                         row.activity,
                         ' mins'
                       )}
                     </td>
 
-                    <td style={{ padding: '12px 14px' }}>
-                      {formatVal(hr, ' bpm')}
+                    <td
+                      style={{
+                        padding: '12px 14px',
+                      }}
+                    >
+                      {formatVal(
+                        hr,
+                        ' bpm'
+                      )}
                     </td>
 
                     <td
@@ -1155,7 +1336,10 @@ export default function Overview({
                             padding: '2px 8px',
                           }}
                         >
-                          {Number(row.energy).toFixed(1)} / 10
+                          {Number(
+                            row.energy
+                          ).toFixed(1)}{' '}
+                          / 10
                         </span>
                       ) : (
                         <span
