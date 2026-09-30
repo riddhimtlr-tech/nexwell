@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import './App.css';
 
+import Auth from './components/Auth';
 import Navbar from './components/Navbar';
 import Overview from './components/Overview';
 import Patterns from './components/Patterns';
@@ -11,12 +13,12 @@ import ConnectedDevices from './components/ConnectedDevices';
 import { api } from './services/api';
 
 function App() {
-  const [userId] = useState('1');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const [userId] = useState('1');
   const [activeTab, setActiveTab] = useState('overview');
 
   const [lifestyleData, setLifestyleData] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -114,8 +116,15 @@ function App() {
   };
 
   useEffect(() => {
-    loadLifestyleData();
-  }, [userId]);
+    if (isAuthenticated) {
+      loadLifestyleData();
+    }
+  }, [userId, isAuthenticated]);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setActiveTab('overview');
+  };
 
   const handleSelectPatternForSimulation = (factor) => {
     setSelectedFactorForSimulator(factor);
@@ -200,6 +209,10 @@ function App() {
         );
     }
   };
+
+  if (!isAuthenticated) {
+    return <Auth onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app-shell">
