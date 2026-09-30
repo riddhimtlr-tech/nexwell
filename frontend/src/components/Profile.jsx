@@ -1,4 +1,13 @@
 import React, { useState } from 'react';
+import {
+  CheckCircle2,
+  Target,
+  Moon,
+  Activity,
+  Monitor,
+  User,
+  Sparkles,
+} from 'lucide-react';
 
 const demoProfile = {
   name: 'Subhiksha',
@@ -18,22 +27,44 @@ function Profile() {
       ...current,
       [field]: value,
     }));
+
     setSaved(false);
   };
 
   const handleSave = () => {
+    // Frontend demo only.
+    // These preferences can be connected to the backend later.
     setSaved(true);
   };
 
   return (
     <section className="profile-page">
+      {/* Header */}
       <div className="profile-header">
         <div>
-          <span className="section-kicker">PERSONALIZATION</span>
-          <h1>Your Profile</h1>
+          <span className="section-kicker">
+            PERSONALIZATION
+          </span>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+              marginTop: '6px',
+            }}
+          >
+            <h1>Your Profile</h1>
+
+            <span className="badge badge-emerald">
+              Personalize
+            </span>
+          </div>
+
           <p>
-            Customize the goals and preferences NexWell uses to personalize
-            your wellness experience.
+            Customize the goals and preferences NexWell uses
+            to personalize your wellness experience.
           </p>
         </div>
 
@@ -43,20 +74,28 @@ function Profile() {
         </div>
       </div>
 
+      {/* Profile content */}
       <div className="profile-grid">
+        {/* Identity card */}
         <div className="profile-card profile-identity">
           <div className="profile-avatar">
-            {profile.name.charAt(0).toUpperCase()}
+            {profile.name
+              ? profile.name.charAt(0).toUpperCase()
+              : 'N'}
           </div>
 
-          <h2>{profile.name}</h2>
+          <h2>
+            {profile.name || 'Your Profile'}
+          </h2>
+
           <p>Personal wellness profile</p>
 
           <div className="profile-summary">
             <div>
               <span>Age</span>
-              <strong>{profile.age}</strong>
+              <strong>{profile.age || '—'}</strong>
             </div>
+
             <div>
               <span>Primary goal</span>
               <strong>{profile.goal}</strong>
@@ -64,67 +103,136 @@ function Profile() {
           </div>
         </div>
 
+        {/* Personal information */}
         <div className="profile-card">
           <div className="card-heading">
             <div>
-              <span className="section-kicker">YOUR DETAILS</span>
+              <span className="section-kicker">
+                YOUR DETAILS
+              </span>
+
               <h2>Personal information</h2>
+
+              <p>
+                Keep your basic profile preferences up to
+                date.
+              </p>
+            </div>
+
+            <div className="profile-heading-icon">
+              <User size={20} />
             </div>
           </div>
 
           <div className="form-grid">
             <label>
               Name
+
               <input
+                type="text"
                 value={profile.name}
-                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="Your name"
+                onChange={(e) =>
+                  handleChange(
+                    'name',
+                    e.target.value
+                  )
+                }
               />
             </label>
 
             <label>
               Age
+
               <input
                 type="number"
                 min="13"
                 max="100"
                 value={profile.age}
                 onChange={(e) =>
-                  handleChange('age', Number(e.target.value))
+                  handleChange(
+                    'age',
+                    Number(e.target.value)
+                  )
                 }
               />
             </label>
 
             <label className="full-width">
               Main wellness goal
+
               <select
                 value={profile.goal}
-                onChange={(e) => handleChange('goal', e.target.value)}
+                onChange={(e) =>
+                  handleChange(
+                    'goal',
+                    e.target.value
+                  )
+                }
               >
-                <option>Improve daily energy</option>
-                <option>Build a consistent sleep routine</option>
-                <option>Increase daily movement</option>
-                <option>Reduce screen time</option>
-                <option>Understand my personal patterns</option>
+                <option>
+                  Improve daily energy
+                </option>
+
+                <option>
+                  Build a consistent sleep routine
+                </option>
+
+                <option>
+                  Increase daily movement
+                </option>
+
+                <option>
+                  Reduce screen time
+                </option>
+
+                <option>
+                  Understand my personal patterns
+                </option>
               </select>
             </label>
           </div>
         </div>
 
+        {/* Personal targets */}
         <div className="profile-card full-width">
           <div className="card-heading">
             <div>
-              <span className="section-kicker">PERSONAL TARGETS</span>
+              <span className="section-kicker">
+                PERSONAL TARGETS
+              </span>
+
               <h2>Your wellness targets</h2>
+
               <p>
-                These are personal targets for the demo experience. They are
-                not medical recommendations.
+                Set personal reference points that NexWell
+                can use to make your dashboard more
+                relevant.
               </p>
+            </div>
+
+            <div className="profile-heading-icon">
+              <Target size={20} />
             </div>
           </div>
 
           <div className="target-grid">
+            {/* Sleep */}
             <label className="target-card">
-              <span>Sleep target</span>
+              <div className="target-card-heading">
+                <div className="target-icon sleep">
+                  <Moon size={18} />
+                </div>
+
+                <div>
+                  <span>Sleep target</span>
+
+                  <small>
+                    Personal reference
+                  </small>
+                </div>
+              </div>
+
               <div className="target-input">
                 <input
                   type="number"
@@ -133,15 +241,33 @@ function Profile() {
                   step="0.5"
                   value={profile.sleepTarget}
                   onChange={(e) =>
-                    handleChange('sleepTarget', Number(e.target.value))
+                    handleChange(
+                      'sleepTarget',
+                      Number(e.target.value)
+                    )
                   }
                 />
+
                 <span>hours</span>
               </div>
             </label>
 
+            {/* Activity */}
             <label className="target-card">
-              <span>Activity target</span>
+              <div className="target-card-heading">
+                <div className="target-icon activity">
+                  <Activity size={18} />
+                </div>
+
+                <div>
+                  <span>Activity target</span>
+
+                  <small>
+                    Personal reference
+                  </small>
+                </div>
+              </div>
+
               <div className="target-input">
                 <input
                   type="number"
@@ -149,15 +275,33 @@ function Profile() {
                   max="300"
                   value={profile.activityTarget}
                   onChange={(e) =>
-                    handleChange('activityTarget', Number(e.target.value))
+                    handleChange(
+                      'activityTarget',
+                      Number(e.target.value)
+                    )
                   }
                 />
+
                 <span>min/day</span>
               </div>
             </label>
 
+            {/* Screen time */}
             <label className="target-card">
-              <span>Screen time target</span>
+              <div className="target-card-heading">
+                <div className="target-icon screen">
+                  <Monitor size={18} />
+                </div>
+
+                <div>
+                  <span>Screen time target</span>
+
+                  <small>
+                    Personal reference
+                  </small>
+                </div>
+              </div>
+
               <div className="target-input">
                 <input
                   type="number"
@@ -166,35 +310,70 @@ function Profile() {
                   step="0.5"
                   value={profile.screenTimeTarget}
                   onChange={(e) =>
-                    handleChange('screenTimeTarget', Number(e.target.value))
+                    handleChange(
+                      'screenTimeTarget',
+                      Number(e.target.value)
+                    )
                   }
                 />
+
                 <span>hours/day</span>
               </div>
             </label>
           </div>
+
+          <div className="profile-target-note">
+            <Sparkles size={16} />
+
+            <span>
+              These are personal targets for the demo
+              experience, not medical recommendations.
+            </span>
+          </div>
         </div>
 
+        {/* Connected data */}
         <div className="profile-card full-width connected-card">
-          <div>
-            <span className="section-kicker">CONNECTED DATA</span>
-            <h2>Health data connection</h2>
-            <p>
-              Your dashboard can use connected health data to build your
-              personal wellness picture.
-            </p>
+          <div className="connected-card-content">
+            <div className="profile-heading-icon">
+              <Activity size={20} />
+            </div>
+
+            <div>
+              <span className="section-kicker">
+                CONNECTED DATA
+              </span>
+
+              <h2>Health data connection</h2>
+
+              <p>
+                Connected wellness signals can help build
+                your personal dashboard and identify
+                patterns in your recent data.
+              </p>
+            </div>
           </div>
 
           <div className="connection-status">
-            <span className="status-dot" />
+            <CheckCircle2 size={15} />
             Demo connection
           </div>
         </div>
       </div>
 
+      {/* Save actions */}
       <div className="profile-actions">
-        {saved && <span className="saved-message">Profile saved locally.</span>}
-        <button className="primary-button" onClick={handleSave}>
+        {saved && (
+          <span className="saved-message">
+            <CheckCircle2 size={16} />
+            Profile saved locally.
+          </span>
+        )}
+
+        <button
+          className="primary-button"
+          onClick={handleSave}
+        >
           Save Profile
         </button>
       </div>
