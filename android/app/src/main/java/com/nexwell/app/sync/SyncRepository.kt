@@ -1,6 +1,7 @@
 package com.nexwell.app.sync
 
 import android.content.Context
+import com.nexwell.app.auth.SessionStore
 import com.nexwell.app.health.DaySummary
 import com.nexwell.app.health.HealthConnectManager
 import kotlinx.coroutines.Dispatchers
@@ -15,47 +16,53 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 object ApiConfig {
-    // With the phone on USB + `adb reverse tcp:5000 tcp:5000`, localhost on the phone = your laptop.
-    // Change the port to whatever the NexWell backend actually uses.
+    // Phone on USB + `adb reverse tcp:5000 tcp:5000` -> localhost on the phone = the laptop.
     const val BASE_URL = "http://localhost:5000"
+    const val LOGIN_PATH = "/api/auth/login"
     const val SYNC_PATH = "/api/health/sync"
-
-    // TODO (Phase 2, with Riddhi): replace with the logged-in user's id / token.
-    var userId: Int = 1
-    var authToken: String? = null
 }
 
-data class SyncResult(val syncedAtMillis: Long, val days: List<DaySummary>)
-
-class SyncRepository(context: Context, private val hc: HealthConnectManager) {
-
-    private val prefs = context.getSharedPreferences("nexwell_sync", Context.MODE_PRIVATE)
-    private val http = OkHttpClient.Builder()
+object Http {
+    val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+}
+
+class NoPermissionException : Exception("No health permissions granted")
+class AuthExpiredException : Exception("Your session expired. Please log in again.")
+
+data class SyncResult(val syncedAtMillis: Long, val days: List<DaySummary>)
+
+class SyncRepository(
+    context: Context,
+    private val hc: HealthConnectManager,
+    private val session: SessionStore,
+) {
+    private val prefs = context.getSharedPreferences("nexwell_sync", Context.MODE_PRIVATE)
 
     fun lastSyncMillis(): Long? = prefs.getLong("last_sync", 0L).takeIf { it > 0 }
 
     suspend fun syncNow(days: Int = 7): SyncResult = withContext(Dispatchers.IO) {
-        val granted = hc.grantedPermissions()
-        check(granted.any { it in HealthConnectManager.READ }) {
-            "No health permissions granted"
-        }
+        val token = session.token ?: throw AuthExpiredException()
+        if (hc.grantedPermissions().none { it in HealthConnectManager.READ }) throw NoPermissionException()
 
         val summaries = hc.readLastDays(days)
-        val body = buildPayload(summaries).toString()
-            .toRequestBody("application/json".toMediaType())
+        val body = buildPayload(summaries).toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
             .url(ApiConfig.BASE_URL + ApiConfig.SYNC_PATH)
+            .header("Authorization", "Bearer $token")   // backend identifies the user from this
             .post(body)
-            .apply { ApiConfig.authToken?.let { header("Authorization", "Bearer $it") } }
             .build()
 
-        http.newCall(request).execute().use { resp ->
+        Http.client.newCall(request).execute().use { resp ->
+            if (resp.code == 401 || resp.code == 403) {
+                session.clear()
+                throw AuthExpiredException()
+            }
             if (!resp.isSuccessful) {
-                error("Server returned ${resp.code}: ${resp.body?.string()?.take(200)}")
+                throw Exception("Server returned ${resp.code}: ${resp.body?.string()?.take(200)}")
             }
         }
 
@@ -64,11 +71,12 @@ class SyncRepository(context: Context, private val hc: HealthConnectManager) {
         SyncResult(now, summaries)
     }
 
+    /** No userId in the body: the backend takes the user from the JWT. */
     private fun buildPayload(days: List<DaySummary>): JSONObject {
         val arr = JSONArray()
         days.forEach { d ->
             arr.put(JSONObject().apply {
-                put("date", d.date.toString())                       // "2026-09-30"
+                put("date", d.date.toString())
                 put("steps", d.steps ?: JSONObject.NULL)
                 put("sleepHours", d.sleepMinutes?.let { Math.round(it / 6.0) / 10.0 } ?: JSONObject.NULL)
                 put("avgHeartRate", d.avgHeartRate ?: JSONObject.NULL)
@@ -78,7 +86,6 @@ class SyncRepository(context: Context, private val hc: HealthConnectManager) {
             })
         }
         return JSONObject().apply {
-            put("userId", ApiConfig.userId)
             put("source", "health_connect")
             put("syncedAt", Instant.now().toString())
             put("days", arr)

@@ -13,13 +13,15 @@
 ## What the app sends
 `POST /api/health/sync`
 ```json
-{ "userId": 1, "source": "health_connect", "syncedAt": "2026-09-30T06:30:00Z",
+{ "source": "health_connect", "syncedAt": "2026-09-30T06:30:00Z",
   "days": [ { "date": "2026-09-30", "steps": 9850, "sleepHours": 7.2,
               "avgHeartRate": 72, "minHeartRate": 58, "maxHeartRate": 131,
               "exerciseMinutes": 35 } ] }
 ```
-Last 7 days every sync; any value may be null. Please upsert by (userId, date).
+Header: `Authorization: Bearer <JWT>` (from `POST /api/auth/login` with `{email, password}`).
+No userId in the body; the backend takes the user from the JWT.
+Last 7 days every sync; any value may be null. Please upsert by (user, date).
 Return 200 `{ "ok": true }`.
 
-Backend URL / port, user id and auth token are in
+Backend URL / port and endpoint paths are in
 `app/src/main/java/com/nexwell/app/sync/SyncRepository.kt` → `ApiConfig`.
