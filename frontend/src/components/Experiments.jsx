@@ -82,12 +82,8 @@ export default function Experiments({
       const res = await api.getExperiments(userId);
       setExperiments(res.experiments || []);
     } catch (err) {
-      console.warn(
-        'Using demo experiment data because the experiments API is unavailable.'
-      );
-
-      setExperiments(demoExperiments);
-      setError(null);
+      setExperiments([]);
+      setError(err.message || 'Could not load experiments');
     } finally {
       setLoading(false);
     }

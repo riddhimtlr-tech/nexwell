@@ -1,5 +1,6 @@
 .env
 .env.*
+!.env.example
 backend/data/tokens.json
 node_modules/
 __pycache__/
@@ -10,3 +11,10 @@ __pycache__/
 *.sql
 
 *.sql
+
+# Android
+**/.gradle/
+**/build/
+**/local.properties
+**/.idea/
+backend/server-debug.log

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Moon, Footprints, Monitor, Zap, Heart, Flame, ArrowRight, Sparkles, AlertCircle, RefreshCw, Calendar, CheckCircle2 } from 'lucide-react';
 
-export default function Overview({ lifestyleData, loading, error, onRefresh, onNavigateToSimulator }) {
+export default function Overview({ user, lifestyleData, loading, error, onRefresh, onNavigateToSimulator }) {
+  const firstName = (user?.name || '').split(' ')[0];
   if (loading) {
     return (
       <div className="nex-card" style={{ padding: '60px', textAlign: 'center' }}>
@@ -34,9 +35,12 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     return (
       <div className="nex-card" style={{ textAlign: 'center', padding: '50px' }}>
         <AlertCircle size={36} color="var(--amber-main)" style={{ margin: '0 auto 12px' }} />
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>No Lifestyle History Found</h3>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+          {firstName ? `Welcome, ${firstName}!` : 'Welcome!'} Your dashboard is empty
+        </h3>
         <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-          No recorded entries exist for this user in PostgreSQL yet.
+          Log in to the NexWell Android app with <strong>{user?.email || 'this same account'}</strong> and tap
+          “Sync Steps”, or use “Add entry” above to log sleep, energy and screen time.
         </p>
       </div>
     );
@@ -49,7 +53,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     .pop() || {};
 
   // Helper for safe value formatting
-  const formatVal = (val, suffix = '', fallback = 'N/A') => {
+  const formatVal = (val, suffix = '', fallback = 'Not synced') => {
     if (val === null || val === undefined || isNaN(val)) return fallback;
     return `${val}${suffix}`;
   };
@@ -72,6 +76,12 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
   const avgHeartRate = calcAvg('heartRate', 'heart_rate') ? Math.round(calcAvg('heartRate', 'heart_rate')) : null;
   const avgEnergy = calcAvg('energy', 'energy');
 
+  const METRIC_KEYS = [['sleep'], ['steps'], ['screen_time', 'screenTime'], ['activity'], ['heart_rate', 'heartRate'], ['energy']];
+  const hasVal = (row, keys) => keys.some(k => row[k] !== null && row[k] !== undefined);
+  const trackedCount = METRIC_KEYS.filter(keys => hasVal(latest, keys)).length;
+  // Steps-only entry = came from the Android Health Connect sync
+  const latestSource = trackedCount === 1 && hasVal(latest, ['steps']) ? 'Health Connect (steps only)' : null;
+
   const latestDateStr = latest.date ? new Date(latest.date).toLocaleDateString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric'
   }) : 'Today';
@@ -80,7 +90,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Sleep Duration',
       unit: 'hrs',
-      value: latest.sleep !== undefined && latest.sleep !== null ? `${latest.sleep}` : 'N/A',
+      value: latest.sleep !== undefined && latest.sleep !== null ? `${latest.sleep}` : 'Not synced',
       avg: avgSleep ? `${avgSleep}h avg` : 'N/A',
       icon: Moon,
       color: '#3B82F6',
@@ -89,7 +99,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Daily Steps',
       unit: 'steps',
-      value: latest.steps !== undefined && latest.steps !== null ? Number(latest.steps).toLocaleString() : 'N/A',
+      value: latest.steps !== undefined && latest.steps !== null ? Number(latest.steps).toLocaleString() : 'Not synced',
       avg: avgSteps ? `${avgSteps.toLocaleString()} avg` : 'N/A',
       icon: Footprints,
       color: '#10B981',
@@ -98,7 +108,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Screen Time',
       unit: 'hrs',
-      value: (latest.screen_time ?? latest.screenTime) !== undefined && (latest.screen_time ?? latest.screenTime) !== null ? `${latest.screen_time ?? latest.screenTime}` : 'N/A',
+      value: (latest.screen_time ?? latest.screenTime) !== undefined && (latest.screen_time ?? latest.screenTime) !== null ? `${latest.screen_time ?? latest.screenTime}` : 'Not synced',
       avg: avgScreen ? `${avgScreen}h avg` : 'N/A',
       icon: Monitor,
       color: '#F59E0B',
@@ -107,7 +117,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Activity Time',
       unit: 'mins',
-      value: latest.activity !== undefined && latest.activity !== null ? `${latest.activity}` : 'N/A',
+      value: latest.activity !== undefined && latest.activity !== null ? `${latest.activity}` : 'Not synced',
       avg: avgActivity ? `${avgActivity}m avg` : 'N/A',
       icon: Flame,
       color: '#EC4899',
@@ -116,7 +126,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Heart Rate',
       unit: 'bpm',
-      value: (latest.heart_rate ?? latest.heartRate) !== undefined && (latest.heart_rate ?? latest.heartRate) !== null ? `${latest.heart_rate ?? latest.heartRate}` : 'N/A',
+      value: (latest.heart_rate ?? latest.heartRate) !== undefined && (latest.heart_rate ?? latest.heartRate) !== null ? `${latest.heart_rate ?? latest.heartRate}` : 'Not synced',
       avg: avgHeartRate ? `${avgHeartRate} bpm avg` : 'N/A',
       icon: Heart,
       color: '#F43F5E',
@@ -125,7 +135,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
     {
       label: 'Energy Level',
       unit: '/10',
-      value: latest.energy !== undefined && latest.energy !== null ? `${latest.energy}` : 'N/A',
+      value: latest.energy !== undefined && latest.energy !== null ? `${latest.energy}` : 'Not synced',
       avg: avgEnergy ? `${avgEnergy}/10 avg` : 'N/A',
       icon: Zap,
       color: '#6366F1',
@@ -142,7 +152,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
           <span className="badge badge-emerald" style={{ marginBottom: '8px' }}>
             Stage 1: Track & Understand
           </span>
-          <h1 className="section-title">Current Lifestyle Snapshot</h1>
+          <h1 className="section-title">{firstName ? `${firstName}'s Lifestyle Snapshot` : 'Current Lifestyle Snapshot'}</h1>
           <p className="section-subtitle" style={{ marginBottom: 0 }}>
             Real-time & historical telemetry retrieved from database ({rows.length} total entries recorded)
           </p>
@@ -182,7 +192,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
               <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>Latest Entry</span>
             </div>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Baseline recorded on <strong style={{ color: '#FFF' }}>{latestDateStr}</strong> • All 6 core wellness signals tracked
+              Latest entry <strong style={{ color: '#FFF' }}>{latestDateStr}</strong> • {trackedCount} of 6 signals recorded{latestSource ? ` • Source: ${latestSource}` : ''}
             </p>
           </div>
         </div>
@@ -256,9 +266,11 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
                     <span style={{ fontSize: '1.85rem', fontWeight: 800, color: '#FFF', letterSpacing: '-0.03em' }}>
                       {card.value}
                     </span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-subtle)', fontWeight: 600 }}>
-                      {card.unit}
-                    </span>
+                    {card.value !== 'Not synced' && (
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-subtle)', fontWeight: 600 }}>
+                        {card.unit}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -378,7 +390,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
                       </div>
                     </td>
                     <td style={{ padding: '12px 14px' }}>{formatVal(row.sleep, ' hrs')}</td>
-                    <td style={{ padding: '12px 14px' }}>{row.steps !== null && row.steps !== undefined ? Number(row.steps).toLocaleString() : 'N/A'}</td>
+                    <td style={{ padding: '12px 14px' }}>{row.steps !== null && row.steps !== undefined ? Number(row.steps).toLocaleString() : '—'}</td>
                     <td style={{ padding: '12px 14px' }}>{formatVal(screen, ' hrs')}</td>
                     <td style={{ padding: '12px 14px' }}>{formatVal(row.activity, ' mins')}</td>
                     <td style={{ padding: '12px 14px' }}>{formatVal(hr, ' bpm')}</td>
@@ -388,7 +400,7 @@ export default function Overview({ lifestyleData, loading, error, onRefresh, onN
                           {row.energy} / 10
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--text-subtle)' }}>N/A</span>
+                        <span style={{ color: 'var(--text-subtle)' }}>—</span>
                       )}
                     </td>
                   </tr>

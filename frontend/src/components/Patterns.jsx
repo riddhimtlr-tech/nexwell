@@ -47,13 +47,14 @@ export default function Patterns({ userId, onSelectPatternForSimulation }) {
     try {
       const res = await api.analyzePatterns(userId);
       setPatterns(res.patterns || []);
+      if ((res.patterns || []).length === 0 && res.skipped?.length) {
+        setError(
+          'Not enough real data yet to find patterns. Patterns need at least 3 days where both values (e.g. steps and energy) were recorded. Currently only steps are synced from Health Connect.'
+        );
+      }
     } catch (err) {
-      console.warn(
-        'Using demo pattern data because the analysis API is unavailable.'
-      );
-
-      setPatterns(demoPatterns);
-      setError(null);
+      setPatterns([]);
+      setError(err.message || 'Pattern analysis unavailable');
     } finally {
       setLoading(false);
     }
