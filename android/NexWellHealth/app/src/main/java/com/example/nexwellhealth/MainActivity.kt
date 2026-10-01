@@ -53,9 +53,9 @@ class MainActivity : ComponentActivity() {
      * on your Mac. Later this becomes your public HTTPS API URL.
      */
     // LOCAL testing (phone + Mac on same Wi-Fi):
-    // private val apiBaseUrl = "http://192.168.1.12:5001"
+    // private val apiBaseUrl = "https://nexwell.onrender.com"
     // DEPLOYED (Render) — replace with your real Render URL, no trailing slash:
-    private val apiBaseUrl = "https://YOUR-RENDER-APP.onrender.com"
+    private val apiBaseUrl = "https://nexwell.onrender.com"
 
     private val permissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class)
