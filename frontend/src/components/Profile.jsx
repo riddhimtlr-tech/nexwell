@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
 import {
   CheckCircle2,
   Target,
@@ -9,18 +10,27 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const demoProfile = {
-  name: 'Subhiksha',
-  age: 17,
-  goal: 'Improve daily energy',
-  sleepTarget: 8,
-  activityTarget: 45,
-  screenTimeTarget: 5,
-};
+const fromApi = (p, user) => ({
+  name: p?.name ?? user?.name ?? '',
+  email: p?.email ?? user?.email ?? '',
+  age: p?.age ?? '',
+  goal: p?.goal ?? '',
+  sleepTarget: p?.sleep_target ?? '',
+  activityTarget: p?.activity_target ?? '',
+  screenTimeTarget: p?.screen_time_target ?? '',
+});
 
-function Profile() {
-  const [profile, setProfile] = useState(demoProfile);
+function Profile({ user, onProfileSaved }) {
+  const [profile, setProfile] = useState(() => fromApi(null, user));
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  useEffect(() => {
+    api
+      .getProfile()
+      .then((res) => setProfile(fromApi(res.profile, user)))
+      .catch((err) => setSaveError(err.message));
+  }, []);
 
   const handleChange = (field, value) => {
     setProfile((current) => ({
@@ -31,10 +41,17 @@ function Profile() {
     setSaved(false);
   };
 
-  const handleSave = () => {
-    // Frontend demo only.
-    // These preferences can be connected to the backend later.
-    setSaved(true);
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      const res = await api.saveProfile(profile);
+      setProfile(fromApi(res.profile, user));
+      setSaved(true);
+      onProfileSaved?.(res.profile);
+    } catch (err) {
+      setSaved(false);
+      setSaveError(err.message || 'Could not save profile');
+    }
   };
 
   return (
@@ -70,7 +87,7 @@ function Profile() {
 
         <div className="profile-status">
           <span className="status-dot" />
-          Demo profile
+          {profile.email || 'Your account'}
         </div>
       </div>
 
@@ -98,7 +115,7 @@ function Profile() {
 
             <div>
               <span>Primary goal</span>
-              <strong>{profile.goal}</strong>
+              <strong>{profile.goal || '—'}</strong>
             </div>
           </div>
         </div>
@@ -326,8 +343,8 @@ function Profile() {
             <Sparkles size={16} />
 
             <span>
-              These are personal targets for the demo
-              experience, not medical recommendations.
+              These are your personal targets, saved to
+              your account. They are not medical recommendations.
             </span>
           </div>
         </div>
@@ -356,17 +373,23 @@ function Profile() {
 
           <div className="connection-status">
             <CheckCircle2 size={15} />
-            Demo connection
+            See Connected Devices
           </div>
         </div>
       </div>
 
       {/* Save actions */}
       <div className="profile-actions">
+        {saveError && (
+          <span className="saved-message" style={{ color: 'var(--rose-main)' }}>
+            {saveError}
+          </span>
+        )}
+
         {saved && (
           <span className="saved-message">
             <CheckCircle2 size={16} />
-            Profile saved locally.
+            Profile saved to your account.
           </span>
         )}
 

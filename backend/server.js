@@ -1,18 +1,46 @@
+require("./services/env"); // load .env BEFORE anything reads process.env
+const path = require("path");
 const authenticateToken = require("./middleware/auth");
 const express = require("express");
 const cors = require("cors");
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
+
+// Return Postgres DATE columns as "YYYY-MM-DD" strings (no timezone shifting).
+types.setTypeParser(1082, (value) => value);
+
+// Convert DB numerics to numbers but KEEP null as null (never turn missing data into 0).
+const num = (v) => (v === null || v === undefined ? null : Number(v));
+const PYTHON_BIN = process.env.PYTHON_BIN || "python3";
+const ANALYSIS_SCRIPT = path.join(__dirname, "..", "analysis", "pattern_analysis.py");
+const SIMULATOR_SCRIPT = path.join(__dirname, "..", "simulator", "what_if.py");
 const { spawn } = require("child_process");
 const authRoutes = require("./routes/auth");
 const app = express();
 const PORT = process.env.PORT || 5001;
-app.use(cors());
+// CORS: localhost for dev + the URLs in FRONTEND_URL (comma-separated) for production.
+// Android requests have no Origin header, so they are always allowed.
+const allowedOrigins = [
+    "http://localhost:5173",
+    ...(process.env.FRONTEND_URL || "").split(",").map((u) => u.trim().replace(/\/$/, "")).filter(Boolean)
+];
+app.use(cors({
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error(`CORS blocked: ${origin}`));
+    }
+}));
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 // PostgreSQL connection
 const pool = new Pool(
     process.env.DATABASE_URL
-        ? { connectionString: process.env.DATABASE_URL }
+        ? {
+            connectionString: process.env.DATABASE_URL,
+            // Render's *internal* URL needs no SSL; the *external* URL does.
+            ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false
+        }
         : {
             user: "riddhi",
             host: "localhost",
@@ -22,14 +50,180 @@ const pool = new Pool(
 );
 app.locals.pool = pool;
 
-// Test database connection
-pool.query("SELECT NOW()", (err, result) => {
+// Test database connection + run small, idempotent migrations
+pool.query("SELECT NOW()", async (err, result) => {
     if (err) {
         console.error("Database connection failed:", err.message);
-    } else {
-        console.log("PostgreSQL connected successfully!");
-        console.log("Database time:", result.rows[0].now);
+        return;
     }
+    console.log("PostgreSQL connected successfully!");
+    console.log("Database time:", result.rows[0].now);
+    try {
+        const migrations = [
+            `CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            `ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS email VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS password_hash TEXT`,
+            `CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (email)`,
+            `CREATE TABLE IF NOT EXISTS lifestyle_data (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                date DATE NOT NULL,
+                sleep NUMERIC(4,2),
+                steps INTEGER,
+                screen_time NUMERIC(4,2),
+                activity NUMERIC(6,2),
+                heart_rate NUMERIC(5,2),
+                energy INTEGER CHECK (energy >= 1 AND energy <= 10),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`,
+            `CREATE TABLE IF NOT EXISTS experiments (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                goal_field VARCHAR(50),
+                target_change NUMERIC(6,2),
+                start_date DATE,
+                end_date DATE,
+                status VARCHAR(20) DEFAULT 'active'
+            )`,
+            `ALTER TABLE lifestyle_data
+                ADD COLUMN IF NOT EXISTS source VARCHAR(30),
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+            `ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS age INTEGER,
+                ADD COLUMN IF NOT EXISTS goal TEXT,
+                ADD COLUMN IF NOT EXISTS sleep_target NUMERIC(4,2),
+                ADD COLUMN IF NOT EXISTS activity_target INTEGER,
+                ADD COLUMN IF NOT EXISTS screen_time_target NUMERIC(4,2)`
+        ];
+        for (const sql of migrations) {
+            try {
+                await pool.query(sql);
+            } catch (e) {
+                console.error("Migration step failed:", e.message, "\n", sql.split("\n")[0]);
+            }
+        }
+        console.log("Database tables ready");
+    } catch (e) {
+        console.error("Migration failed:", e.message);
+    }
+});
+
+// Who am I? Used by Android + web to confirm they are logged into the SAME account.
+app.get("/api/auth/me", authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, name, email FROM users WHERE id = $1`,
+            [req.user.userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.json({ user: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to load user", error: error.message });
+    }
+});
+
+// ---------- Per-user dashboard endpoints (user comes from the JWT, never from the URL) ----------
+
+// My lifestyle data
+app.get("/api/me/lifestyle", authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM lifestyle_data WHERE user_id = $1 ORDER BY date ASC`,
+            [req.user.userId]
+        );
+        res.json({ userId: req.user.userId, count: result.rows.length, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch lifestyle data", error: error.message });
+    }
+});
+
+// My sync status per source (used by Connected Devices + dashboard banner)
+app.get("/api/me/sync-status", authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT COALESCE(source, 'unknown') AS source,
+                    COUNT(*)::int AS days,
+                    MAX(date) AS last_date,
+                    MAX(updated_at) AS last_synced_at
+             FROM lifestyle_data
+             WHERE user_id = $1
+             GROUP BY COALESCE(source, 'unknown')`,
+            [req.user.userId]
+        );
+        const sources = {};
+        for (const row of result.rows) sources[row.source] = row;
+        res.json({ userId: req.user.userId, sources });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch sync status", error: error.message });
+    }
+});
+
+// My profile + goals
+app.get("/api/me/profile", authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, name, email, age, goal, sleep_target, activity_target, screen_time_target
+             FROM users WHERE id = $1`,
+            [req.user.userId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: "User not found" });
+        res.json({ profile: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to load profile", error: error.message });
+    }
+});
+
+app.put("/api/me/profile", authenticateToken, async (req, res) => {
+    try {
+        const clean = (v) => (v === "" || v === undefined ? null : v);
+        const { name, age, goal, sleepTarget, activityTarget, screenTimeTarget } = req.body;
+        if (name !== undefined && !String(name).trim()) {
+            return res.status(400).json({ message: "Name cannot be empty" });
+        }
+        const result = await pool.query(
+            `UPDATE users SET
+                name = COALESCE($2, name),
+                age = $3,
+                goal = $4,
+                sleep_target = $5,
+                activity_target = $6,
+                screen_time_target = $7
+             WHERE id = $1
+             RETURNING id, name, email, age, goal, sleep_target, activity_target, screen_time_target`,
+            [
+                req.user.userId,
+                name ? String(name).trim() : null,
+                clean(age), clean(goal), clean(sleepTarget), clean(activityTarget), clean(screenTimeTarget)
+            ]
+        );
+        res.json({ message: "Profile saved", profile: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to save profile", error: error.message });
+    }
+});
+
+// Deployment health check: open https://<your-app>.onrender.com/api/health-check
+app.get("/api/health-check", async (req, res) => {
+    const status = { server: "ok", database: "unknown", python: "unknown" };
+    try {
+        await pool.query("SELECT 1");
+        status.database = "ok";
+    } catch (e) {
+        status.database = `error: ${e.message}`;
+    }
+    await new Promise((resolve) => {
+        const p = spawn(PYTHON_BIN, ["--version"]);
+        p.on("error", (e) => { status.python = `missing: ${e.message}`; resolve(); });
+        p.on("close", (code) => { if (status.python === "unknown") status.python = code === 0 ? "ok" : `exit ${code}`; resolve(); });
+    });
+    res.json(status);
 });
 
 // Home route
@@ -93,18 +287,16 @@ app.post("/api/analyze", authenticateToken, async (req, res) => {
         // Convert database data to Python format
         const lifestyleData = result.rows.map(row => ({
             date: row.date,
-            sleep: Number(row.sleep),
-            steps: Number(row.steps),
-            screenTime: Number(row.screen_time),
-            activity: Number(row.activity),
-            heartRate: Number(row.heart_rate),
-            energy: Number(row.energy)
+            sleep: num(row.sleep),
+            steps: num(row.steps),
+            screenTime: num(row.screen_time),
+            activity: num(row.activity),
+            heartRate: num(row.heart_rate),
+            energy: num(row.energy)
         }));
 
         // Start Python pattern analysis
-        const pythonProcess = spawn("python3", [
-            "../analysis/pattern_analysis.py"
-        ]);
+        const pythonProcess = spawn(PYTHON_BIN, [ANALYSIS_SCRIPT]);
 
         let pythonOutput = "";
         let pythonError = "";
@@ -186,18 +378,16 @@ app.post("/api/simulate", authenticateToken, async (req, res) => {
         // Convert database data to Python format
         const lifestyleData = result.rows.map(row => ({
             date: row.date,
-            sleep: Number(row.sleep),
-            steps: Number(row.steps),
-            screenTime: Number(row.screen_time),
-            activity: Number(row.activity),
-            heartRate: Number(row.heart_rate),
-            energy: Number(row.energy)
+            sleep: num(row.sleep),
+            steps: num(row.steps),
+            screenTime: num(row.screen_time),
+            activity: num(row.activity),
+            heartRate: num(row.heart_rate),
+            energy: num(row.energy)
         }));
 
         // Send data to Python simulator
-        const pythonProcess = spawn("python3", [
-            "../simulator/what_if.py"
-        ]);
+        const pythonProcess = spawn(PYTHON_BIN, [SIMULATOR_SCRIPT]);
 
         let pythonOutput = "";
         let pythonError = "";
@@ -238,6 +428,10 @@ app.post("/api/simulate", authenticateToken, async (req, res) => {
 
             try {
                 const simulation = JSON.parse(pythonOutput);
+
+                if (simulation.error) {
+                    return res.status(400).json({ message: simulation.error, simulation });
+                }
 
                 res.json({
                     userId: userId,
@@ -422,7 +616,6 @@ app.get("/api/compare/:experimentId", authenticateToken, async (req, res) => {
 });
 
 // ---------- Google Health Integration ----------
-require("./services/env");
 
 const gh = require('./services/googleHealth');
 const normalize = require('./services/normalize');
@@ -431,6 +624,7 @@ const collect = require('./services/collect');
 // Helper to save or update lifestyle_data records in PostgreSQL
 async function saveOrUpdateLifestyleRecord(pool, record) {
     const { userId, date, sleep, steps, screenTime, activity, heartRate, energy } = record;
+    const source = record.source || null;
 
     const checkResult = await pool.query(
         `SELECT id FROM lifestyle_data WHERE user_id = $1 AND date = $2`,
@@ -442,14 +636,16 @@ async function saveOrUpdateLifestyleRecord(pool, record) {
         const values = [userId, date];
         let paramIdx = 3;
 
-        if (sleep !== null) { fieldsToUpdate.push(`sleep = $${paramIdx++}`); values.push(sleep); }
-        if (steps !== null) { fieldsToUpdate.push(`steps = $${paramIdx++}`); values.push(steps); }
-        if (screenTime !== null) { fieldsToUpdate.push(`screen_time = $${paramIdx++}`); values.push(screenTime); }
-        if (activity !== null) { fieldsToUpdate.push(`activity = $${paramIdx++}`); values.push(activity); }
-        if (heartRate !== null) { fieldsToUpdate.push(`heart_rate = $${paramIdx++}`); values.push(heartRate); }
-        if (energy !== null) { fieldsToUpdate.push(`energy = $${paramIdx++}`); values.push(energy); }
+        if (sleep !== null && sleep !== undefined) { fieldsToUpdate.push(`sleep = $${paramIdx++}`); values.push(sleep); }
+        if (steps !== null && steps !== undefined) { fieldsToUpdate.push(`steps = $${paramIdx++}`); values.push(steps); }
+        if (screenTime !== null && screenTime !== undefined) { fieldsToUpdate.push(`screen_time = $${paramIdx++}`); values.push(screenTime); }
+        if (activity !== null && activity !== undefined) { fieldsToUpdate.push(`activity = $${paramIdx++}`); values.push(activity); }
+        if (heartRate !== null && heartRate !== undefined) { fieldsToUpdate.push(`heart_rate = $${paramIdx++}`); values.push(heartRate); }
+        if (energy !== null && energy !== undefined) { fieldsToUpdate.push(`energy = $${paramIdx++}`); values.push(energy); }
 
         if (fieldsToUpdate.length > 0) {
+            fieldsToUpdate.push(`updated_at = CURRENT_TIMESTAMP`);
+            if (source) { fieldsToUpdate.push(`source = $${paramIdx++}`); values.push(source); }
             const query = `UPDATE lifestyle_data SET ${fieldsToUpdate.join(', ')} WHERE user_id = $1 AND date = $2 RETURNING *`;
             const updateRes = await pool.query(query, values);
             return updateRes.rows[0];
@@ -457,10 +653,10 @@ async function saveOrUpdateLifestyleRecord(pool, record) {
         return checkResult.rows[0];
     } else {
         const insertRes = await pool.query(
-            `INSERT INTO lifestyle_data (user_id, date, sleep, steps, screen_time, activity, heart_rate, energy)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO lifestyle_data (user_id, date, sleep, steps, screen_time, activity, heart_rate, energy, source, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
              RETURNING *`,
-            [userId, date, sleep || 0, steps || 0, screenTime || 0, activity || 0, heartRate || 70, energy || 5]
+            [userId, date, sleep ?? null, steps ?? null, screenTime ?? null, activity ?? null, heartRate ?? null, energy ?? null, source]
         );
         return insertRes.rows[0];
     }
@@ -510,7 +706,7 @@ app.post("/api/health/sync", authenticateToken, async (req, res) => {
         for (const record of records) {
             const hasData = Object.keys(record).some(k => k !== 'userId' && k !== 'date' && record[k] !== null);
             if (hasData) {
-                const savedRow = await saveOrUpdateLifestyleRecord(pool, record);
+                const savedRow = await saveOrUpdateLifestyleRecord(pool, { ...record, source: "google_health" });
                 saved.push(savedRow);
             }
         }
@@ -536,12 +732,17 @@ app.post("/api/health/manual", authenticateToken, async (req, res) => {
         };
         const { record, errors } = normalize.validateManual(manualData);
         if (errors.length > 0) {
-            return res.status(400).json({ message: "Validation failed", errors });
+            return res.status(400).json({ message: errors.join(", "), errors });
         }
+        const ALLOWED_SOURCES = ["manual", "health_connect"];
+        record.source = ALLOWED_SOURCES.includes(req.body.source) ? req.body.source : "manual";
 
         const savedRow = await saveOrUpdateLifestyleRecord(pool, record);
+        console.log(`[sync] user ${req.user.userId} (${req.user.email}) saved ${record.date}:`, record);
         res.json({
             message: "Manual lifestyle entry saved successfully to PostgreSQL",
+            userId: req.user.userId,
+            email: req.user.email,
             record: savedRow
         });
     } catch (error) {
@@ -569,7 +770,8 @@ app.post("/api/wearable/simulate", authenticateToken, async (req, res) => {
         for (const dataPoint of simulatedData) {
             const record = {
                 userId,
-                ...dataPoint
+                ...dataPoint,
+                source: "simulated"
             };
             const savedRow = await saveOrUpdateLifestyleRecord(pool, record);
             saved.push(savedRow);

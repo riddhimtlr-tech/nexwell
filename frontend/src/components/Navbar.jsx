@@ -14,8 +14,8 @@ import {
 export default function Navbar({
   activeTab,
   setActiveTab,
-  userId = '1',
-  setUserId
+  user,
+  onLogout
 }) {
   const tabs = [
     {
@@ -178,49 +178,26 @@ export default function Navbar({
             <span
               style={{
                 fontSize: '0.85rem',
-                color: 'var(--text-muted)',
-                fontWeight: 500
-              }}
-            >
-              Active User:
-            </span>
-
-            <select
-              value={userId}
-              onChange={(e) =>
-                setUserId?.(e.target.value)
-              }
-              style={{
-                background: 'transparent',
-                border: 'none',
                 color: 'var(--text-main)',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                outline: 'none',
-                cursor: 'pointer'
+                fontWeight: 600
               }}
+              title={user?.email || ''}
             >
-              <option
-                value="1"
-                style={{ background: '#121826' }}
-              >
-                User 1 (Alex - Default)
-              </option>
-
-              <option
-                value="2"
-                style={{ background: '#121826' }}
-              >
-                User 2 (Jordan)
-              </option>
-
-              <option
-                value="3"
-                style={{ background: '#121826' }}
-              >
-                User 3 (Taylor)
-              </option>
-            </select>
+              {user?.name || user?.email || 'Signed in'}
+              {user?.id ? ` · #${user.id}` : ''}
+            </span>
+            {user?.email && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                {user.email}
+              </span>
+            )}
+            <button
+              className="btn-secondary"
+              onClick={onLogout}
+              style={{ padding: '4px 10px', fontSize: '0.8rem' }}
+            >
+              Logout
+            </button>
           </div>
         </div>
 

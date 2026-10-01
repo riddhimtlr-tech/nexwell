@@ -1,171 +1,115 @@
-
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Activity,
   CheckCircle2,
   Smartphone,
-  Watch,
+  PenLine,
   RefreshCw
 } from 'lucide-react';
+import { api } from '../services/api';
 
-const demoDevices = [
+// Real, per-user sources. Status comes from what this user has actually synced.
+const SOURCES = [
   {
-    id: 'health-connect',
-    name: 'Health Connect',
+    id: 'health_connect',
+    name: 'Health Connect (Android app)',
     description:
-      'Sync activity, sleep, steps, and heart-rate signals.',
-    icon: Activity,
-    status: 'Connected',
-    lastSync: 'Just now'
+      'Steps read from Health Connect on your phone and synced by the NexWell Android app. Currently syncs steps only.',
+    icon: Smartphone
   },
   {
-    id: 'smartphone',
-    name: 'Phone Activity',
+    id: 'manual',
+    name: 'Manual entries',
     description:
-      'Use your phone to capture daily movement and screen-time signals.',
-    icon: Smartphone,
-    status: 'Connected',
-    lastSync: '2 min ago'
-  },
-  {
-    id: 'wearable',
-    name: 'Wearable Device',
-    description:
-      'Optional wearable data for additional wellness signals.',
-    icon: Watch,
-    status: 'Not connected',
-    lastSync: '—'
+      'Sleep, screen time, activity, heart rate and energy you log on the dashboard.',
+    icon: PenLine
   }
 ];
 
+const formatWhen = (value) => {
+  if (!value) return '—';
+  const d = new Date(value);
+  return isNaN(d) ? String(value) : d.toLocaleString();
+};
+
 function ConnectedDevices() {
-  const [devices, setDevices] = useState(demoDevices);
+  const [sources, setSources] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleToggle = (deviceId) => {
-    setDevices((current) =>
-      current.map((device) => {
-        if (device.id !== deviceId) {
-          return device;
-        }
-
-        const connected = device.status === 'Connected';
-
-        return {
-          ...device,
-          status: connected ? 'Not connected' : 'Connected',
-          lastSync: connected ? '—' : 'Just now'
-        };
-      })
-    );
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.getSyncStatus();
+      setSources(res.sources || {});
+    } catch (err) {
+      setError(err.message || 'Could not load sync status');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRefresh = () => {
-    setDevices((current) =>
-      current.map((device) =>
-        device.status === 'Connected'
-          ? {
-              ...device,
-              lastSync: 'Just now'
-            }
-          : device
-      )
-    );
-  };
+  useEffect(() => {
+    load();
+  }, []);
 
-  const connectedCount = devices.filter(
-    (device) => device.status === 'Connected'
-  ).length;
+  const connectedCount = SOURCES.filter((s) => sources[s.id]).length;
 
   return (
     <section className="devices-page">
       <div className="devices-header">
         <div>
           <span className="section-kicker">CONNECTED DATA</span>
-
-          <h1>Your Connected Devices</h1>
-
-          <p>
-            Choose which data sources NexWell can use to build
-            your personalized wellness picture.
-          </p>
+          <h1>Your Data Sources</h1>
+          <p>Where the data on your dashboard comes from. Only your own account’s data is shown.</p>
         </div>
 
-        <button
-          className="secondary-button"
-          onClick={handleRefresh}
-        >
+        <button className="secondary-button" onClick={load} disabled={loading}>
           <RefreshCw size={16} />
-          Refresh
+          {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
 
       <div className="devices-summary">
         <div>
-          <span className="summary-number">
-            {connectedCount}
-          </span>
-
-          <span className="summary-label">
-            Connected sources
-          </span>
+          <span className="summary-number">{connectedCount}</span>
+          <span className="summary-label">Sources with data</span>
         </div>
-
         <div className="sync-summary">
           <span className="status-dot" />
-          Demo sync active
+          {error ? error : 'Live from your account'}
         </div>
       </div>
 
       <div className="device-list">
-        {devices.map((device) => {
-          const Icon = device.icon;
-          const connected = device.status === 'Connected';
+        {SOURCES.map((source) => {
+          const Icon = source.icon;
+          const info = sources[source.id];
+          const active = Boolean(info);
 
           return (
-            <article
-              className="device-card"
-              key={device.id}
-            >
+            <article className="device-card" key={source.id}>
               <div className="device-icon">
                 <Icon size={24} />
               </div>
 
               <div className="device-info">
                 <div className="device-title-row">
-                  <h2>{device.name}</h2>
-
-                  <span
-                    className={
-                      connected
-                        ? 'device-status connected'
-                        : 'device-status'
-                    }
-                  >
-                    {connected && (
-                      <CheckCircle2 size={14} />
-                    )}
-
-                    {device.status}
+                  <h2>{source.name}</h2>
+                  <span className={active ? 'device-status connected' : 'device-status'}>
+                    {active && <CheckCircle2 size={14} />}
+                    {active ? `${info.days} day${info.days === 1 ? '' : 's'} synced` : 'No data yet'}
                   </span>
                 </div>
 
-                <p>{device.description}</p>
+                <p>{source.description}</p>
 
                 <span className="last-sync">
-                  Last sync: {device.lastSync}
+                  Last synced: {active ? formatWhen(info.last_synced_at) : '—'}
+                  {active && info.last_date ? ` • latest day: ${info.last_date}` : ''}
                 </span>
               </div>
-
-              <button
-                className={
-                  connected
-                    ? 'device-button connected'
-                    : 'device-button'
-                }
-                onClick={() => handleToggle(device.id)}
-              >
-                {connected ? 'Disconnect' : 'Connect'}
-              </button>
             </article>
           );
         })}
@@ -175,15 +119,12 @@ function ConnectedDevices() {
         <div className="devices-note-icon">
           <Activity size={18} />
         </div>
-
         <div>
-          <h3>How NexWell uses connected data</h3>
-
+          <h3>How to connect your phone</h3>
           <p>
-            Connected signals can appear in your dashboard,
-            help identify personal patterns, and support
-            What-If simulations. This demo uses sample data
-            while the real data connection is integrated.
+            Install the NexWell Android app, log in with the same email you use here, tap
+            “Connect Health Data”, then “Sync Steps to NexWell”. Your dashboard refreshes
+            automatically within 30 seconds.
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 .env
 .env.*
+!.env.example
 backend/data/tokens.json
 node_modules/
 __pycache__/

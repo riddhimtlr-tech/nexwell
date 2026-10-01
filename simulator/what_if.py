@@ -36,52 +36,63 @@ def simulate(data, change):
     historical patterns, not a medical prediction.
     """
 
-    current = data[-1]
-
     field = change["field"]
     delta = change["delta"]
 
-    estimated = {
-        "sleep": current["sleep"],
-        "energy": current["energy"]
-    }
+    def latest(key):
+        for day in reversed(data):
+            if day.get(key) is not None:
+                return float(day[key])
+        return None
 
-    # Extract historical vectors
-    sleep_hist = [float(day["sleep"]) for day in data]
-    steps_hist = [float(day["steps"]) for day in data]
-    screen_hist = [float(day["screenTime"]) for day in data]
-    activity_hist = [float(day["activity"]) for day in data]
-    energy_hist = [float(day["energy"]) for day in data]
+    def paired(a, b):
+        xs, ys = [], []
+        for day in data:
+            if day.get(a) is not None and day.get(b) is not None:
+                xs.append(float(day[a]))
+                ys.append(float(day[b]))
+        return xs, ys
+
+    current = {"sleep": latest("sleep"), "energy": latest("energy")}
+
+    if current["energy"] is None or (field == "screenTime" and current["sleep"] is None):
+        return {
+            "error": "Not enough real sleep/energy data yet to simulate this change",
+            "current": current,
+            "change": change,
+            "estimated": None,
+            "confidence": "insufficient-data"
+        }
+
+    estimated = dict(current)
 
     # Screen time → sleep & energy
     if field == "screenTime":
-        slope_sleep = calculate_slope(screen_hist, sleep_hist, fallback_slope=-0.45)
-        slope_energy = calculate_slope(screen_hist, energy_hist, fallback_slope=-1.0)
+        slope_sleep = calculate_slope(*paired("screenTime", "sleep"), fallback_slope=-0.45)
+        slope_energy = calculate_slope(*paired("screenTime", "energy"), fallback_slope=-1.0)
 
         estimated["sleep"] = round(current["sleep"] + (slope_sleep * delta), 1)
         estimated["energy"] = round(current["energy"] + (slope_energy * delta), 1)
 
     # Steps → energy
     elif field == "steps":
-        slope_energy = calculate_slope(steps_hist, energy_hist, fallback_slope=1.0 / 2000)
+        slope_energy = calculate_slope(*paired("steps", "energy"), fallback_slope=1.0 / 2000)
 
         estimated["energy"] = round(current["energy"] + (slope_energy * delta), 1)
 
     # Activity → energy
     elif field == "activity":
-        slope_energy = calculate_slope(activity_hist, energy_hist, fallback_slope=1.0 / 20)
+        slope_energy = calculate_slope(*paired("activity", "energy"), fallback_slope=1.0 / 20)
 
         estimated["energy"] = round(current["energy"] + (slope_energy * delta), 1)
 
     # Keep values within sensible bounds
-    estimated["sleep"] = max(0.0, estimated["sleep"])
+    if estimated["sleep"] is not None:
+        estimated["sleep"] = max(0.0, estimated["sleep"])
     estimated["energy"] = max(1.0, min(10.0, estimated["energy"]))
 
     return {
-        "current": {
-            "sleep": current["sleep"],
-            "energy": current["energy"]
-        },
+        "current": current,
         "change": change,
         "estimated": estimated,
         "confidence": "estimate"

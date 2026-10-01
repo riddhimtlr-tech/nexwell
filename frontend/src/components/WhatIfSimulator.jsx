@@ -47,7 +47,7 @@ export default function WhatIfSimulator({
    *
    * The API integration below remains intact.
    */
-  const USE_OFFLINE_DEMO = true;
+  const USE_OFFLINE_DEMO = false;
 
   /*
    * Frontend-only illustrative simulation.

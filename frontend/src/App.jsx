@@ -10,6 +10,7 @@ import WhatIfSimulator from './components/WhatIfSimulator';
 import Experiments from './components/Experiments';
 import Profile from './components/Profile';
 import ConnectedDevices from './components/ConnectedDevices';
+import ManualEntry from './components/ManualEntry';
 
 import { api } from './services/api';
 
@@ -40,106 +41,90 @@ function App() {
 
   const userId = user?.id;
 
-  const demoLifestyleData = [
-    {
-      date: '2026-09-24',
-      sleep: 6.8,
-      steps: 7420,
-      screenTime: 6.2,
-      activity: 34,
-      heartRate: 74,
-      energy: 6.1
-    },
-    {
-      date: '2026-09-25',
-      sleep: 7.1,
-      steps: 8150,
-      screenTime: 5.7,
-      activity: 42,
-      heartRate: 72,
-      energy: 6.7
-    },
-    {
-      date: '2026-09-26',
-      sleep: 7.4,
-      steps: 9210,
-      screenTime: 5.1,
-      activity: 48,
-      heartRate: 71,
-      energy: 7.2
-    },
-    {
-      date: '2026-09-27',
-      sleep: 6.9,
-      steps: 6800,
-      screenTime: 6.5,
-      activity: 30,
-      heartRate: 75,
-      energy: 6.0
-    },
-    {
-      date: '2026-09-28',
-      sleep: 7.3,
-      steps: 9840,
-      screenTime: 4.8,
-      activity: 52,
-      heartRate: 70,
-      energy: 7.5
-    },
-    {
-      date: '2026-09-29',
-      sleep: 7.2,
-      steps: 9850,
-      screenTime: 5.0,
-      activity: 46,
-      heartRate: 72,
-      energy: 7.3
-    }
-  ];
+const loadLifestyleData = async () => {
+  if (!userId) {
+    setLifestyleData([]);
+    setLoading(false);
+    return;
+  }
 
-  const loadLifestyleData = async () => {
-    if (!userId) {
+  setLoading(true);
+  setError(null);
+
+  try {
+    const response = await api.getLifestyleData();
+
+    const data =
+      response?.lifestyleData ||
+      response?.data ||
+      response;
+
+    if (Array.isArray(data)) {
+      setLifestyleData(data);
+    } else {
       setLifestyleData([]);
-      setLoading(false);
-      return;
     }
+  } catch (err) {
+    console.error('Failed to load lifestyle data:', err);
+    setLifestyleData([]);
+    setError(err.message || 'Failed to load lifestyle data');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.getLifestyleData(userId);
-
-      const data =
-        response?.lifestyleData ||
-        response?.data ||
-        response;
-
-      if (Array.isArray(data) && data.length > 0) {
-        setLifestyleData(data);
-      } else {
-        setLifestyleData(demoLifestyleData);
-      }
-    } catch (err) {
-      console.log(
-        'Using demo lifestyle data:',
-        err.message
-      );
-
-      setLifestyleData(demoLifestyleData);
-      setError(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Wake the Render backend early (free tier sleeps after 15 min idle)
   useEffect(() => {
-    if (isAuthenticated && userId) {
-      loadLifestyleData();
-    }
+    const base = import.meta.env.VITE_API_BASE_URL || '/api';
+    fetch(`${base}/health-check`).catch(() => {});
+  }, []);
+
+  // On startup, ask the backend who this token belongs to (never trust stale localStorage).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api
+      .getMe()
+      .then(({ user: me }) => {
+        setUser(me);
+        localStorage.setItem('nexwell_user', JSON.stringify(me));
+      })
+      .catch(() => handleLogout());
+  }, [isAuthenticated]);
+
+  // Load this user's data, then keep it fresh so Android syncs show up automatically.
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+
+    loadLifestyleData();
+
+    const refreshQuietly = () => {
+      api
+        .getLifestyleData()
+        .then((res) => setLifestyleData(Array.isArray(res?.data) ? res.data : []))
+        .catch(() => {});
+    };
+
+    const interval = setInterval(refreshQuietly, 30000);
+    window.addEventListener('focus', refreshQuietly);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshQuietly);
+    };
   }, [isAuthenticated, userId]);
 
+  // api.js fires this when the token is rejected
+  useEffect(() => {
+    const onForcedLogout = () => handleLogout();
+    window.addEventListener('nexwell:logout', onForcedLogout);
+    return () => window.removeEventListener('nexwell:logout', onForcedLogout);
+  }, []);
+
   const handleLogin = (loggedInUser) => {
+    // Clear anything left from a previous user before showing the new one
+    setLifestyleData([]);
+    setError(null);
+    setPrefilledScenarioForExperiment(null);
     setUser(loggedInUser);
     setIsAuthenticated(true);
     setActiveTab('overview');
@@ -173,20 +158,25 @@ function App() {
     switch (activeTab) {
       case 'overview':
         return (
-          <Overview
-            lifestyleData={lifestyleData}
-            loading={loading}
-            error={error}
-            onRefresh={loadLifestyleData}
-            onNavigateToSimulator={() =>
-              setActiveTab('simulator')
-            }
-          />
+          <>
+            <ManualEntry onSaved={loadLifestyleData} />
+            <Overview
+              user={user}
+              lifestyleData={lifestyleData}
+              loading={loading}
+              error={error}
+              onRefresh={loadLifestyleData}
+              onNavigateToSimulator={() =>
+                setActiveTab('simulator')
+              }
+            />
+          </>
         );
 
       case 'patterns':
         return (
           <Patterns
+            key={userId}
             userId={userId}
             onSelectPatternForSimulation={
               handleSelectPatternForSimulation
@@ -197,6 +187,7 @@ function App() {
       case 'simulator':
         return (
           <WhatIfSimulator
+            key={userId}
             userId={userId}
             selectedFactor={selectedFactorForSimulator}
             onStartExperimentFromSimulation={
@@ -208,6 +199,7 @@ function App() {
       case 'experiments':
         return (
           <Experiments
+            key={userId}
             userId={userId}
             prefilledScenario={
               prefilledScenarioForExperiment
@@ -219,10 +211,20 @@ function App() {
         );
 
       case 'profile':
-        return <Profile />;
+        return (
+          <Profile
+            key={userId}
+            user={user}
+            onProfileSaved={(p) => {
+              const updated = { ...user, name: p.name };
+              setUser(updated);
+              localStorage.setItem('nexwell_user', JSON.stringify(updated));
+            }}
+          />
+        );
 
       case 'devices':
-        return <ConnectedDevices />;
+        return <ConnectedDevices key={userId} />;
 
       default:
         return (
